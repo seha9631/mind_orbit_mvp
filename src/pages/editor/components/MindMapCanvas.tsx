@@ -9,7 +9,7 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import useStore from '../model/store';
 import MindMapNode from './MindMapNode';
 import MindMapEdge from './MindMapEdge';
@@ -19,8 +19,12 @@ const edgeTypes = { mindmap: MindMapEdge };
 const nodeOrigin: NodeOrigin = [0.5, 0.5];
 
 export default function MindMapCanvas() {
-  const { nodes, edges, onNodesChange, onEdgesChange, addChildNode } = useStore();
+  const { nodes, edges, onNodesChange, onEdgesChange, addChildNode, loadFromDB } = useStore();
   const connectingNodeId = useRef<string | null>(null);
+
+  useEffect(() => {
+    loadFromDB();
+  }, [loadFromDB]);
   const store = useStoreApi();
   const { screenToFlowPosition } = useReactFlow();
 
