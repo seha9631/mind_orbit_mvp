@@ -18,13 +18,34 @@ const nodeTypes = { mindmap: MindMapNode };
 const edgeTypes = { mindmap: MindMapEdge };
 const nodeOrigin: NodeOrigin = [0.5, 0.5];
 
-export default function MindMapCanvas() {
-  const { nodes, edges, onNodesChange, onEdgesChange, addChildNode, loadFromDB } = useStore();
+const SAVE_STATUS_LABEL: Record<string, string> = {
+  saving: '저장 중...',
+  saved: '저장됨',
+  error: '저장 실패',
+};
+
+interface MindMapCanvasProps {
+  onBack?: () => void;
+}
+
+export default function MindMapCanvas({ onBack }: MindMapCanvasProps) {
+  const {
+    nodes,
+    edges,
+    saveStatus,
+    onNodesChange,
+    onEdgesChange,
+    addChildNode,
+    addRootNode,
+    deleteNode,
+    loadFromDB,
+  } = useStore();
   const connectingNodeId = useRef<string | null>(null);
 
   useEffect(() => {
     loadFromDB();
   }, [loadFromDB]);
+
   const store = useStoreApi();
   const { screenToFlowPosition } = useReactFlow();
 
@@ -84,8 +105,55 @@ export default function MindMapCanvas() {
     [getChildNodePosition, addChildNode, store],
   );
 
+  // P0: FAB 핸들러 — 뷰포트 중앙에 독립 노드 생성
+  const handleFabClick = useCallback(() => {
+    const position = screenToFlowPosition({
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+    });
+    addRootNode(position);
+  }, [screenToFlowPosition, addRootNode]);
+
+  // P3: 키보드 단축키
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return;
+
+      const selectedNode = nodes.find((n) => n.selected);
+      if (!selectedNode) return;
+
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        addChildNode(selectedNode, { x: 150, y: 0 });
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const parentNode = selectedNode.parentId
+          ? nodes.find((n) => n.id === selectedNode.parentId)
+          : null;
+        if (parentNode) {
+          addChildNode(parentNode, {
+            x: selectedNode.position.x,
+            y: selectedNode.position.y + 60,
+          });
+        } else {
+          addRootNode(
+            screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 }),
+          );
+        }
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        deleteNode(selectedNode.id);
+      }
+    },
+    [nodes, addChildNode, addRootNode, deleteNode, screenToFlowPosition],
+  );
+
   return (
-    <div style={{ width: '100%', height: '100vh' }}>
+    <div
+      style={{ width: '100%', height: '100vh', touchAction: 'none' }}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -96,13 +164,31 @@ export default function MindMapCanvas() {
         nodeOrigin={nodeOrigin}
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
+        panOnScroll={false}
+        zoomOnPinch
         fitView
       >
         <Controls showInteractive={false} />
         <Panel position="top-left" className="header">
-          Mind Orbit
+          {onBack && (
+            <button className="backBtn" onClick={onBack}>
+              ← 목록
+            </button>
+          )}
         </Panel>
+        {saveStatus !== 'idle' && (
+          <Panel position="top-right">
+            <span className={`saveStatus saveStatus--${saveStatus}`}>
+              {SAVE_STATUS_LABEL[saveStatus]}
+            </span>
+          </Panel>
+        )}
       </ReactFlow>
+
+      {/* P0: 모바일 FAB 버튼 */}
+      <button className="fab" onClick={handleFabClick} aria-label="새 노드 추가">
+        +
+      </button>
     </div>
   );
 }

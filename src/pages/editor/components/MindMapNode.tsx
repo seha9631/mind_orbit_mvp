@@ -7,9 +7,10 @@ export type NodeData = {
   label: string;
 };
 
-function MindMapNode({ id, data }: NodeProps<Node<NodeData>>) {
+function MindMapNode({ id, data, selected }: NodeProps<Node<NodeData>>) {
   const inputRef = useRef<HTMLInputElement>(null);
   const updateNodeLabel = useStore((state) => state.updateNodeLabel);
+  const deleteNode = useStore((state) => state.deleteNode);
 
   useLayoutEffect(() => {
     if (inputRef.current) {
@@ -44,6 +45,16 @@ function MindMapNode({ id, data }: NodeProps<Node<NodeData>>) {
           className="input"
           ref={inputRef}
         />
+        {selected && (
+          <button
+            className="deleteBtn"
+            onClick={(e) => { e.stopPropagation(); deleteNode(id); }}
+            onMouseDown={(e) => e.stopPropagation()}
+            title="노드 삭제"
+          >
+            ×
+          </button>
+        )}
       </div>
 
       <Handle type="target" position={Position.Top} />

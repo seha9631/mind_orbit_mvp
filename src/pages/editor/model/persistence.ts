@@ -2,6 +2,7 @@ import type { Edge, Node } from '@xyflow/react';
 import type { NodeRecord, EdgeRecord } from '../../../services/db/schema';
 import { nodeRepository } from '../../../services/db/repositories/nodeRepository';
 import { edgeRepository } from '../../../services/db/repositories/edgeRepository';
+import { mapRepository } from '../../../services/db/repositories/mapRepository';
 
 // ─── 타입 변환 ────────────────────────────────────────────────────────────────
 
@@ -46,14 +47,32 @@ export function fromEdgeRecord(record: EdgeRecord): Edge {
 
 // ─── DB 저장 ─────────────────────────────────────────────────────────────────
 
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+// mapId별 독립 타이머 (멀티맵 환경에서 서로 간섭 방지)
+const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 /** 드래그 등 연속적인 변경에서 과도한 쓰기를 막기 위한 디바운스 저장 */
-export function scheduleSave(mapId: string, nodes: Node[], edges: Edge[], delay = 500) {
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    saveMapNow(mapId, nodes, edges);
+export function scheduleSave(
+  mapId: string,
+  nodes: Node[],
+  edges: Edge[],
+  onStatusChange?: (status: SaveStatus) => void,
+  delay = 500,
+) {
+  onStatusChange?.('saving');
+  const existing = saveTimers.get(mapId);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(async () => {
+    saveTimers.delete(mapId);
+    try {
+      await saveMapNow(mapId, nodes, edges);
+      onStatusChange?.('saved');
+    } catch {
+      onStatusChange?.('error');
+    }
   }, delay);
+  saveTimers.set(mapId, timer);
 }
 
 /** 즉시 저장 (첫 로드 후 초기 데이터 저장 등에 사용) */
@@ -61,6 +80,7 @@ export async function saveMapNow(mapId: string, nodes: Node[], edges: Edge[]) {
   await Promise.all([
     nodeRepository.replaceAll(mapId, nodes.map((n) => toNodeRecord(n, mapId))),
     edgeRepository.replaceAll(mapId, edges.map((e) => toEdgeRecord(e, mapId))),
+    mapRepository.update(mapId, { updatedAt: Date.now() }),
   ]);
 }
 

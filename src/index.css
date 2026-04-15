@@ -89,3 +89,247 @@ body,
   font-size: 12px;
   font-weight: 700;
 }
+
+/* 삭제 버튼 */
+.deleteBtn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: #ff5f5f;
+  color: white;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  pointer-events: all;
+  z-index: 10;
+}
+
+.deleteBtn:hover {
+  background: #e53e3e;
+}
+
+/* P0: 모바일 FAB 버튼 */
+.fab {
+  position: fixed;
+  bottom: 32px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: #f6ad55;
+  color: white;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  touch-action: manipulation;
+}
+
+.fab:active {
+  background: #ed8936;
+  transform: scale(0.95);
+}
+
+/* 에디터 Back 버튼 */
+.backBtn {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.backBtn:hover {
+  color: #333;
+}
+
+/* ─── 대시보드 ─────────────────────────────────────────────────────────────── */
+
+.dashboard {
+  min-height: 100vh;
+  background: #fff;
+  padding-bottom: 100px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.dashboard__header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dashboard__app-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.dashboard__title-section {
+  padding: 24px 20px 8px;
+}
+
+.dashboard__title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #111;
+  margin: 0 0 4px;
+}
+
+.dashboard__subtitle {
+  font-size: 13px;
+  color: #999;
+  margin: 0;
+}
+
+.dashboard__tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 20px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 16px;
+}
+
+.dashboard__tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 12px 16px 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #999;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.dashboard__tab--active {
+  color: #111;
+  font-weight: 700;
+  border-bottom-color: #111;
+}
+
+.dashboard__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 0 20px;
+}
+
+.dashboard__empty {
+  padding: 48px 20px;
+  text-align: center;
+  color: #aaa;
+  font-size: 14px;
+}
+
+/* 대시보드 FAB: 짙은 색상 */
+.dashboard__fab {
+  background: #1a1a2e;
+}
+
+.dashboard__fab:active {
+  background: #2d2d4e;
+}
+
+/* ─── 맵 카드 ────────────────────────────────────────────────────────────────── */
+
+.map-card {
+  border-radius: 14px;
+  border: 1px solid #eee;
+  overflow: hidden;
+  cursor: pointer;
+  background: #fff;
+  transition: box-shadow 0.15s;
+}
+
+.map-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.map-card:active {
+  transform: scale(0.98);
+}
+
+.map-card__preview {
+  background: #f2f4f8;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.map-card__star {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.map-card__star:hover {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.map-card__info {
+  padding: 10px 12px 12px;
+}
+
+.map-card__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+  margin: 0 0 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-card__date {
+  font-size: 12px;
+  color: #aaa;
+  margin: 0;
+}
+
+/* P1: 저장 상태 표시 */
+.saveStatus {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.saveStatus--saving {
+  color: #888;
+}
+
+.saveStatus--saved {
+  color: #38a169;
+}
+
+.saveStatus--error {
+  color: #e53e3e;
+}

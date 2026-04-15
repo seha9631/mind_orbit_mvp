@@ -8,6 +8,7 @@ export interface MapRecord {
   title: string;
   createdAt: number;
   updatedAt: number;
+  favorite?: boolean;
 }
 
 export interface NodeRecord {
