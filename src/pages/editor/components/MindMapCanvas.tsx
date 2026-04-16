@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Position,
   ReactFlow,
   type ReactFlowInstance,
   type XYPosition,
@@ -37,27 +36,6 @@ function isSamePosition(left: XYPosition, right: XYPosition) {
   return left.x === right.x && left.y === right.y
 }
 
-function getAnchorPosition(vector: XYPosition) {
-  if (Math.abs(vector.x) >= Math.abs(vector.y)) {
-    return vector.x >= 0 ? Position.Right : Position.Left
-  }
-
-  return vector.y >= 0 ? Position.Bottom : Position.Top
-}
-
-function getOppositePosition(position: Position) {
-  switch (position) {
-    case Position.Left:
-      return Position.Right
-    case Position.Right:
-      return Position.Left
-    case Position.Top:
-      return Position.Bottom
-    case Position.Bottom:
-      return Position.Top
-  }
-}
-
 export function MindMapCanvas({
   deviceClass,
   editingNodeId,
@@ -78,6 +56,7 @@ export function MindMapCanvas({
   const [instance, setInstance] = useState<ReactFlowInstance | null>(null)
   const [dragPositions, setDragPositions] = useState<Record<string, XYPosition>>({})
   const initializedMapIdRef = useRef<string | null>(null)
+
   const effectiveMapNodes = useMemo(
     () =>
       map.nodes.map((node) => ({
@@ -86,69 +65,32 @@ export function MindMapCanvas({
       })),
     [dragPositions, map.nodes],
   )
+
   const branchColors = buildBranchColorMap(map)
   const edges = buildFlowEdges(map)
-  const nodeById = useMemo(
-    () => new Map(effectiveMapNodes.map((node) => [node.id, node])),
-    [effectiveMapNodes],
-  )
-  const nodes: MindFlowNode[] = effectiveMapNodes.map((node) => {
-    const parent = node.parentId ? nodeById.get(node.parentId) ?? null : null
-    const children = effectiveMapNodes.filter((candidate) => candidate.parentId === node.id)
-    const targetPosition = parent
-      ? getAnchorPosition({
-          x: parent.position.x - node.position.x,
-          y: parent.position.y - node.position.y,
-        })
-      : Position.Left
-    const sourceVector =
-      children.length > 0
-        ? {
-            x:
-              children.reduce((sum, child) => sum + (child.position.x - node.position.x), 0) /
-              children.length,
-            y:
-              children.reduce((sum, child) => sum + (child.position.y - node.position.y), 0) /
-              children.length,
-          }
-        : parent
-          ? {
-              x: node.position.x - parent.position.x,
-              y: node.position.y - parent.position.y,
-            }
-          : {
-              x: 1,
-              y: 0,
-            }
-    const sourcePosition = children.length > 0
-      ? getAnchorPosition(sourceVector)
-      : getOppositePosition(targetPosition)
 
-    return {
+  const nodes: MindFlowNode[] = effectiveMapNodes.map((node) => ({
+    id: node.id,
+    data: {
+      color: branchColors.get(node.id) ?? '#89b6ff',
+      deviceClass,
       id: node.id,
-      data: {
-        color: branchColors.get(node.id) ?? '#89b6ff',
-        deviceClass,
-        id: node.id,
-        isEditing: editingNodeId === node.id,
-        isRoot: node.id === map.rootNodeId,
-        label: node.text,
-        placeholder: node.id === map.rootNodeId ? '중심 생각' : '생각 입력',
-        onChangeLabel,
-        onOpenMore,
-        onQuickAddChild,
-        onSelect: onSelectNode,
-        onStartEditing,
-        onStopEditing,
-        touchPrimary: isTouchPrimary,
-      },
-      position: node.position,
-      selected: selectedNodeId === node.id,
-      sourcePosition,
-      targetPosition,
-      type: 'mind',
-    }
-  })
+      isEditing: editingNodeId === node.id,
+      isRoot: node.id === map.rootNodeId,
+      label: node.text,
+      placeholder: node.id === map.rootNodeId ? '중심 생각' : '생각 입력',
+      onChangeLabel,
+      onOpenMore,
+      onQuickAddChild,
+      onSelect: onSelectNode,
+      onStartEditing,
+      onStopEditing,
+      touchPrimary: isTouchPrimary,
+    },
+    position: node.position,
+    selected: selectedNodeId === node.id,
+    type: 'mind',
+  }))
 
   useEffect(() => {
     if (!instance || fitViewToken === 0) {
@@ -165,6 +107,7 @@ export function MindMapCanvas({
     }
 
     initializedMapIdRef.current = map.id
+
     const isInitialViewport =
       map.viewport.x === 0 &&
       map.viewport.y === 0 &&
