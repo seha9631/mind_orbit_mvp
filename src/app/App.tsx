@@ -1,13 +1,13 @@
 import { startTransition, useEffect, useState } from 'react'
 
-import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
-import { getAppMeta, listMindMaps, saveAppMeta } from '../lib/db'
-import { useResponsiveMode } from '../hooks/useResponsiveMode'
-import { DashboardPage } from '../features/dashboard/DashboardPage'
-import { EditorPage } from '../features/editor/EditorPage'
-import { LandingPage } from '../features/landing/LandingPage'
+import { Badge } from '../shared/ui/badge'
+import { Button } from '../shared/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../shared/ui/card'
+import { getAppMeta, listMindMaps, saveAppMeta } from '../shared/lib/db'
+import { useResponsiveMode } from './useResponsiveMode'
+import { DashboardPage } from '../pages/dashboard/DashboardPage'
+import { EditorPage } from '../pages/editor/EditorPage'
+import { LandingPage } from '../pages/landing/LandingPage'
 
 type Screen =
   | { name: 'landing' }
