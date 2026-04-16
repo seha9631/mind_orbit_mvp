@@ -59,7 +59,7 @@ export function EditorPage({
   useEditorKeyboard(editor, deviceClass)
 
   useEffect(() => {
-    if (!editor.map) {
+    if (!editor.map?.id) {
       return
     }
 
@@ -67,7 +67,7 @@ export function EditorPage({
       lastOpenedMapId: editor.map.id,
       lastScreen: 'editor',
     })
-  }, [editor.map])
+  }, [editor.map?.id])
 
   async function handleGoHome() {
     await flush()
