@@ -69,11 +69,6 @@ export function EditorActionDock({
         <MoreHorizontal />
         {deviceClass === 'desktop' ? '더보기' : null}
       </Button>
-      {deviceClass === 'desktop' ? (
-        <span className="pr-2 text-xs tracking-[0.12em] text-white/52">
-          Tab 자식 · Enter 형제 · Delete 삭제
-        </span>
-      ) : null}
     </div>
   )
 }

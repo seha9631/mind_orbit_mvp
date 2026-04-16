@@ -1,7 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
-import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { MoreHorizontal, Plus } from 'lucide-react'
-import { flushSync } from 'react-dom'
+import { Handle, NodeResizeControl, Position, type NodeProps } from '@xyflow/react'
+import { Plus } from 'lucide-react'
 
 import { Button } from '../../../shared/ui/button'
 import { Card } from '../../../shared/ui/card'
@@ -46,16 +45,30 @@ function getWidthClass(
   }
 }
 
+function getChildButtonClass(branchSide: MindFlowNode['data']['branchSide']) {
+  return branchSide === 'left'
+    ? 'right-[calc(100%+0.55rem)] top-1/2 -translate-y-1/2'
+    : 'left-[calc(100%+0.55rem)] top-1/2 -translate-y-1/2'
+}
+
 export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
   const longPressRef = useRef<number | null>(null)
   const longPressTriggeredRef = useRef(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null)
+  const startEditingFrameRef = useRef<number | null>(null)
 
   function clearLongPress() {
     if (longPressRef.current) {
       window.clearTimeout(longPressRef.current)
       longPressRef.current = null
+    }
+  }
+
+  function clearPendingStartEditing() {
+    if (startEditingFrameRef.current) {
+      window.cancelAnimationFrame(startEditingFrameRef.current)
+      startEditingFrameRef.current = null
     }
   }
 
@@ -111,30 +124,36 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
     }
   }, [data.isEditing])
 
+  useEffect(() => clearPendingStartEditing, [])
+
   function startEditingFromGesture() {
-    flushSync(() => {
+    clearPendingStartEditing()
+
+    // Let the originating tap/click sequence finish before mounting the input,
+    // otherwise the trailing pointer events can immediately blur it again.
+    startEditingFrameRef.current = window.requestAnimationFrame(() => {
+      startEditingFrameRef.current = null
       data.onStartEditing(data.id)
     })
-
-    const input = inputRef.current
-
-    if (!input) {
-      return
-    }
-
-    input.focus({ preventScroll: true })
-    const cursorPosition = input.value.length
-    input.setSelectionRange(cursorPosition, cursorPosition)
   }
 
   const showPlaceholder = !data.label.trim()
-  const widthClass = getWidthClass(data.deviceClass, showPlaceholder)
+  const hasCustomSize = !!data.size
+  const widthClass = hasCustomSize
+    ? 'h-full w-full'
+    : getWidthClass(data.deviceClass, showPlaceholder)
   const surfaceStyle: CSSProperties = {
-    borderColor: selected ? withAlpha(data.color, 0.42) : withAlpha(data.color, data.isRoot ? 0.18 : 0.1),
+    borderColor: selected
+      ? withAlpha(data.color, 0.7)
+      : withAlpha(data.color, data.isRoot ? 0.18 : 0.1),
+    borderWidth: selected ? 3 : 1.5,
     boxShadow: selected
-      ? `0 20px 44px rgba(17, 24, 39, 0.1), 0 0 0 4px ${withAlpha(data.color, 0.18)}`
+      ? `0 20px 44px rgba(17, 24, 39, 0.1), 0 0 0 6px ${withAlpha(data.color, 0.2)}`
       : `0 18px 36px rgba(17, 24, 39, 0.08)`,
   }
+  const showNodeActions = selected
+  const showDesktopHint = showNodeActions && data.deviceClass === 'desktop'
+  const showResizeHandle = selected
 
   return (
     <div
@@ -166,6 +185,31 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
         ['--node-color' as string]: data.color,
       }}
     >
+      {showResizeHandle ? (
+        <NodeResizeControl
+          className="nodrag nopan !size-0 !border-0 !bg-transparent"
+          maxHeight={240}
+          maxWidth={440}
+          minHeight={56}
+          minWidth={168}
+          onResizeEnd={(_event, params) => {
+            data.onResizeEnd(data.id, {
+              height: params.height,
+              width: params.width,
+            })
+          }}
+          onResizeStart={() => {
+            data.onSelect(data.id)
+          }}
+          position="bottom-right"
+        >
+          <span
+            className="block size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[2.5px] bg-white shadow-[0_4px_10px_rgba(17,24,39,0.12)]"
+            style={{ borderColor: data.color }}
+          />
+        </NodeResizeControl>
+      ) : null}
+
       <Handle
         className="!size-2.5 !border-0 !bg-transparent"
         id="left-target"
@@ -186,18 +230,26 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
           <Input
             autoFocus
             className={cn(
-              'nodrag nopan rounded-[20px] bg-white/95 px-4 py-3 text-sm shadow-[0_18px_36px_rgba(17,24,39,0.08)]',
+              'nodrag nopan rounded-[20px] bg-white/95 px-4 py-3 shadow-[0_18px_36px_rgba(17,24,39,0.08)]',
+              data.touchPrimary ? 'text-base' : 'text-sm',
               widthClass,
+              hasCustomSize ? 'h-full min-h-[3.5rem]' : '',
               data.isRoot ? 'font-semibold' : '',
             )}
+            data-editor-input="true"
             inputMode="text"
-            onBlur={data.onStopEditing}
             onChange={(event) => data.onChangeLabel(data.id, event.target.value)}
+            onClick={(event) => {
+              event.stopPropagation()
+            }}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === 'Escape') {
                 event.preventDefault()
                 data.onStopEditing()
               }
+            }}
+            onPointerDown={(event) => {
+              event.stopPropagation()
             }}
             placeholder={data.placeholder}
             ref={inputRef}
@@ -209,6 +261,7 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
             className={cn(
               'cursor-grab rounded-[22px] bg-white/94 px-4 py-3 transition-all duration-150 active:cursor-grabbing',
               widthClass,
+              hasCustomSize ? 'flex h-full min-h-[3.5rem] items-start' : '',
               data.isRoot ? 'bg-white/86 font-semibold' : '',
             )}
             onPointerDown={(event) => {
@@ -247,27 +300,48 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
         )}
       </div>
 
-      {selected && !data.isEditing ? (
-        <div className="nodrag nopan absolute left-1/2 top-[calc(100%+0.55rem)] z-[2] flex -translate-x-1/2 gap-2">
+      {showNodeActions ? (
+        <>
           <Button
-            className="h-8 rounded-full px-3 text-xs shadow-[0_12px_24px_rgba(17,24,39,0.18)]"
+            aria-label="자식 노드 추가"
+            className={cn(
+              'nodrag nopan absolute z-[4] size-8 rounded-full px-0 shadow-[0_10px_20px_rgba(43,131,255,0.24)]',
+              getChildButtonClass(data.branchSide),
+            )}
             onClick={() => data.onQuickAddChild(data.id)}
-            size="sm"
             type="button"
           >
-            <Plus />
-            자식
+            <Plus className="size-4" />
           </Button>
-          <Button
-            className="h-8 rounded-full border-white/60 bg-white/92 px-3 text-xs text-foreground shadow-[0_12px_24px_rgba(17,24,39,0.14)] hover:bg-white"
-            onClick={() => data.onOpenMore(data.id)}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <MoreHorizontal />
-          </Button>
-        </div>
+
+          {data.canAddSibling ? (
+            <Button
+              aria-label="형제 노드 추가"
+              className="nodrag nopan absolute left-1/2 top-[calc(100%+0.65rem)] z-[4] size-8 -translate-x-1/2 rounded-full px-0 shadow-[0_10px_20px_rgba(43,131,255,0.24)]"
+              onClick={() => data.onQuickAddSibling(data.id)}
+              type="button"
+            >
+              <Plus className="size-4" />
+            </Button>
+          ) : null}
+
+          {showDesktopHint ? (
+            <div className="nodrag nopan absolute left-[calc(100%+4.3rem)] top-1/2 z-[4] grid min-w-40 -translate-y-1/2 gap-2 rounded-[22px] border border-white/55 bg-white/88 p-3 shadow-[0_18px_36px_rgba(17,24,39,0.12)] backdrop-blur-xl">
+              <div className="flex items-center gap-2 text-xs text-foreground/80">
+                <span className="rounded-xl border border-slate-300 bg-white px-2 py-1 font-semibold text-foreground">
+                  Tab
+                </span>
+                <span>하위레벨 생성</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-foreground/80">
+                <span className="rounded-xl border border-slate-300 bg-white px-2 py-1 font-semibold text-foreground">
+                  Enter
+                </span>
+                <span>동일레벨 생성</span>
+              </div>
+            </div>
+          ) : null}
+        </>
       ) : null}
 
       <Handle

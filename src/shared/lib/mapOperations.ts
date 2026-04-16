@@ -1,6 +1,6 @@
 import type { Edge, XYPosition } from '@xyflow/react'
 
-import type { MindMapNodeRecord, MindMapRecord } from '../types/mindmap'
+import type { MindMapNodeRecord, MindMapRecord, NodeSize } from '../types/mindmap'
 
 const ROOT_PLACEHOLDER = '중심 생각'
 
@@ -17,12 +17,30 @@ const MAX_POSITION_SEARCH_DEPTH = 10
 const MAX_POSITION_SEARCH_LANES = 6
 const MIN_NODE_CENTER_GAP_X = 248
 const MIN_NODE_CENTER_GAP_Y = 92
+const MIN_NODE_WIDTH = 168
+const MIN_NODE_HEIGHT = 56
+const MAX_NODE_WIDTH = 440
+const MAX_NODE_HEIGHT = 240
 
 function stampMap(map: MindMapRecord) {
   return {
     ...map,
     updatedAt: new Date().toISOString(),
   }
+}
+
+function normalizeNodeSize(size: Partial<NodeSize> | undefined) {
+  if (!size) {
+    return undefined
+  }
+
+  const width = Number.isFinite(size.width) ? Math.round(size.width as number) : MIN_NODE_WIDTH
+  const height = Number.isFinite(size.height) ? Math.round(size.height as number) : MIN_NODE_HEIGHT
+
+  return {
+    width: Math.max(MIN_NODE_WIDTH, Math.min(MAX_NODE_WIDTH, width)),
+    height: Math.max(MIN_NODE_HEIGHT, Math.min(MAX_NODE_HEIGHT, height)),
+  } satisfies NodeSize
 }
 
 function findNode(map: MindMapRecord, nodeId: string) {
@@ -235,6 +253,7 @@ export function sanitizeMindMap(map: MindMapRecord) {
         x: Number.isFinite(node.position.x) ? node.position.x : 0,
         y: Number.isFinite(node.position.y) ? node.position.y : 0,
       },
+      size: normalizeNodeSize(node.size),
     }))
 
   return {
@@ -326,6 +345,22 @@ export function moveNode(map: MindMapRecord, nodeId: string, position: XYPositio
         ? {
             ...node,
             position,
+          }
+        : node,
+    ),
+  })
+}
+
+export function resizeNode(map: MindMapRecord, nodeId: string, size: NodeSize) {
+  const normalizedSize = normalizeNodeSize(size)
+
+  return stampMap({
+    ...map,
+    nodes: map.nodes.map((node) =>
+      node.id === nodeId
+        ? {
+            ...node,
+            size: normalizedSize,
           }
         : node,
     ),

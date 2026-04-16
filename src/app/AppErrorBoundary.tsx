@@ -42,7 +42,7 @@ export class AppErrorBoundary extends Component<
   override render() {
     if (this.state.hasError) {
       return (
-        <div className="bg-orbit-shell flex min-h-dvh min-h-svh items-center justify-center p-5">
+        <div className="bg-orbit-shell app-screen safe-page-x safe-page-y flex items-center justify-center">
           <Card className="w-full max-w-xl bg-white/78">
             <CardHeader>
               <Badge>Mind Orbit</Badge>

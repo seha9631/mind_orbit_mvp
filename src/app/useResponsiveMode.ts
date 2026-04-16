@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 
 import type { DeviceClass } from '../shared/types/mindmap'
 
@@ -51,8 +51,25 @@ function getSnapshot(): ResponsiveMode {
   }
 }
 
+function syncViewportCssVars(mode: Pick<ResponsiveMode, 'keyboardInset' | 'viewportHeight' | 'viewportWidth'>) {
+  const root = document.documentElement
+
+  root.style.setProperty('--app-viewport-height', `${mode.viewportHeight}px`)
+  root.style.setProperty('--app-viewport-width', `${mode.viewportWidth}px`)
+  root.style.setProperty('--app-keyboard-inset', `${mode.keyboardInset}px`)
+}
+
 export function useResponsiveMode() {
   const [mode, setMode] = useState<ResponsiveMode>(() => getSnapshot())
+  const { keyboardInset, viewportHeight, viewportWidth } = mode
+
+  useLayoutEffect(() => {
+    syncViewportCssVars({
+      keyboardInset,
+      viewportHeight,
+      viewportWidth,
+    })
+  }, [keyboardInset, viewportHeight, viewportWidth])
 
   useEffect(() => {
     const handleChange = () => {
