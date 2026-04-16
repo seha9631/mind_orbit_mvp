@@ -1,9 +1,6 @@
-import { useEffect, useState } from 'react'
-import { FolderPlus, Sparkles } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
-import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
-import { Card, CardContent } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import {
   Sheet,
@@ -22,55 +19,45 @@ interface CreateMapSheetProps {
   onCreate: (title: string) => Promise<void>
 }
 
-export function CreateMapSheet({
-  deviceClass,
-  open,
-  onClose,
-  onCreate,
-}: CreateMapSheetProps) {
+export function CreateMapSheet({ deviceClass, open, onClose, onCreate }: CreateMapSheetProps) {
   const [title, setTitle] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  // Ref prevents duplicate submissions when Enter + button click fire in the same
+  // render cycle — React state updates are async and wouldn't block the second call.
+  const pendingRef = useRef(false)
 
   useEffect(() => {
     if (!open) {
       setTitle('')
       setSubmitting(false)
+      pendingRef.current = false
     }
   }, [open])
 
-  if (!open) {
-    return null
-  }
-
-  async function handleCreate() {
+  async function handleSubmit() {
+    if (pendingRef.current || !title.trim()) return
     try {
+      pendingRef.current = true
       setSubmitting(true)
-      await onCreate(title)
+      await onCreate(title.trim())
     } finally {
+      pendingRef.current = false
       setSubmitting(false)
     }
   }
 
   return (
-    <Sheet
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) {
-          onClose()
-        }
-      }}
-      open={open}
-    >
+    <Sheet onOpenChange={(next) => { if (!next) onClose() }} open={open}>
       <SheetContent
         aria-label="새 마인드맵 만들기"
         className="border-white/20 bg-[#171921]/95 text-white"
         side={deviceClass === 'desktop' ? 'right' : 'bottom'}
       >
         <div className="mx-auto h-1.5 w-14 rounded-full bg-white/18 md:hidden" />
-        <SheetHeader className="space-y-3">
-          <Badge className="w-fit bg-white/10 text-white">Create Map</Badge>
-          <SheetTitle className="text-white">새 마인드맵을 바로 시작해요</SheetTitle>
-          <SheetDescription className="text-white/65">
-            제목만 정하면 기본 테마와 자동 저장이 준비된 캔버스로 바로 이동합니다.
+        <SheetHeader className="space-y-1.5">
+          <SheetTitle className="text-white">새 마인드맵</SheetTitle>
+          <SheetDescription className="text-white/55">
+            제목을 입력하면 바로 캔버스로 이동합니다.
           </SheetDescription>
         </SheetHeader>
 
@@ -80,40 +67,29 @@ export function CreateMapSheet({
             autoFocus
             className="border-white/12 bg-white/8 text-white placeholder:text-white/35 focus-visible:ring-white/25"
             onChange={(event) => setTitle(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') void handleSubmit()
+            }}
             placeholder="예: 브랜드 캠페인 아이디어"
             value={title}
           />
         </label>
 
-        <Card className="border-white/10 bg-white/6 text-white shadow-none">
-          <CardContent className="grid gap-3 p-4">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <FolderPlus className="size-4 text-[#94b6ff]" />
-              기본 설정
-            </div>
-            <p className="text-sm leading-6 text-white/65">
-              단일 테마와 오프라인 자동 저장을 기본으로 사용합니다. 먼저 만들고,
-              캔버스에서 바로 가지를 추가하세요.
-            </p>
-            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/42">
-              <Sparkles className="size-3.5" />
-              Zero Friction Flow
-            </div>
-          </CardContent>
-        </Card>
-
         <SheetFooter className="pt-1">
-          <Button onClick={onClose} type="button" variant="outline">
-            닫기
+          <Button
+            className="border-white/20 text-white/80 hover:bg-white/8 hover:text-white"
+            onClick={onClose}
+            type="button"
+            variant="outline"
+          >
+            취소
           </Button>
           <Button
-            disabled={submitting}
-            onClick={() => {
-              void handleCreate()
-            }}
+            disabled={submitting || !title.trim()}
+            onClick={() => void handleSubmit()}
             type="button"
           >
-            {submitting ? '만드는 중...' : '마인드맵 만들기'}
+            {submitting ? '만드는 중...' : '만들기'}
           </Button>
         </SheetFooter>
       </SheetContent>
