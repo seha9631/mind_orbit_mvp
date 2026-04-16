@@ -14,7 +14,7 @@ export function FloatingAddButton({
   onClick,
   visible,
 }: FloatingAddButtonProps) {
-  if (!visible || deviceClass === 'desktop') {
+  if (!visible || deviceClass !== 'tablet') {
     return null
   }
 

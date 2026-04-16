@@ -4,6 +4,11 @@ export type ActiveSheet = 'none' | 'create-map' | 'style' | 'more'
 
 export type AppScreenName = 'landing' | 'dashboard' | 'editor'
 
+export interface NodeSize {
+  width: number
+  height: number
+}
+
 export interface MindMapNodeRecord {
   id: string
   parentId: string | null
@@ -12,6 +17,7 @@ export interface MindMapNodeRecord {
     x: number
     y: number
   }
+  size?: NodeSize
 }
 
 export interface ViewportState {

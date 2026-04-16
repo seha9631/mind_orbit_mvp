@@ -76,7 +76,7 @@ export function EditorPage({
 
   if (editor.loading) {
     return (
-      <div className="bg-editor-shell flex min-h-dvh min-h-svh items-center justify-center p-5">
+      <div className="bg-editor-shell app-screen safe-page-x safe-page-y flex items-center justify-center">
         <Card className="w-full max-w-md bg-white/76">
           <CardContent className="p-6 text-center text-sm text-muted-foreground">
             마인드맵을 열고 있어요...
@@ -88,7 +88,7 @@ export function EditorPage({
 
   if (editor.error || !editor.map) {
     return (
-      <div className="bg-editor-shell flex min-h-dvh min-h-svh items-center justify-center p-5">
+      <div className="bg-editor-shell app-screen safe-page-x safe-page-y flex items-center justify-center">
         <Card className="w-full max-w-md bg-white/78">
           <CardContent className="grid gap-4 p-6 text-center">
             <p className="text-sm leading-6 text-muted-foreground">
@@ -115,7 +115,7 @@ export function EditorPage({
 
   return (
     <main
-      className="bg-editor-shell relative min-h-dvh min-h-svh overflow-hidden"
+      className="bg-editor-shell app-screen relative overflow-hidden"
       style={editorStyle}
     >
       <Button
@@ -157,7 +157,6 @@ export function EditorPage({
         editingNodeId={editor.editingNodeId}
         fitViewToken={fitViewToken}
         isTouchPrimary={isTouchPrimary}
-        keyboardVisible={keyboardVisible}
         map={editor.map}
         onChangeLabel={editor.changeNodeText}
         onMoveNode={editor.updateNodePosition}
@@ -166,6 +165,8 @@ export function EditorPage({
           editor.openSheet('more')
         }}
         onQuickAddChild={(nodeId) => editor.addChild(nodeId)}
+        onQuickAddSibling={(nodeId) => editor.addSibling(nodeId)}
+        onResizeNode={editor.updateNodeSize}
         onSelectNode={editor.selectNode}
         onSetViewport={editor.setViewportState}
         onStartEditing={editor.startEditing}

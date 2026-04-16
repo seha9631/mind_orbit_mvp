@@ -143,7 +143,7 @@ export function DashboardPage({ deviceClass, onOpenMap }: DashboardPageProps) {
   }
 
   return (
-    <main className="bg-editor-shell min-h-dvh min-h-svh px-5 py-6 sm:px-8 lg:px-10">
+    <main className="bg-editor-shell app-screen safe-page-x safe-page-y sm:px-8 lg:px-10">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         {/* Header */}
         <header className="flex flex-col gap-3">
