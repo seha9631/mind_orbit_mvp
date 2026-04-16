@@ -3,10 +3,7 @@ import {
   Controls,
   Panel,
   type NodeOrigin,
-  type OnConnectStart,
-  type OnConnectEnd,
   type Node,
-  useStoreApi,
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -48,7 +45,6 @@ export default function MindMapCanvas({ onBack }: MindMapCanvasProps) {
     loadFromDB,
   } = useStore();
 
-  const connectingNodeId = useRef<string | null>(null);
   const trashRef = useRef<HTMLDivElement>(null);
   const [trashHovered, setTrashHovered] = useState(false);
 
@@ -61,7 +57,6 @@ export default function MindMapCanvas({ onBack }: MindMapCanvasProps) {
     loadFromDB();
   }, [loadFromDB]);
 
-  const store = useStoreApi();
   const { screenToFlowPosition } = useReactFlow();
 
   // ─── 맵 제목 편집 ──────────────────────────────────────────────────────────
@@ -82,48 +77,6 @@ export default function MindMapCanvas({ onBack }: MindMapCanvasProps) {
     setMapTitle(trimmed);
     await mapRepository.update(mapId, { title: trimmed });
   };
-
-  // ─── 드래그로 자식 노드 생성 ────────────────────────────────────────────────
-
-  const getChildNodePosition = useCallback(
-    (event: MouseEvent) => {
-      const { nodeLookup } = store.getState();
-      const parentNode = nodeLookup.get(connectingNodeId.current!);
-      if (
-        !parentNode?.internals?.positionAbsolute ||
-        !parentNode?.measured?.width ||
-        !parentNode?.measured?.height
-      ) return;
-
-      const panePosition = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      return {
-        x: panePosition.x - parentNode.internals.positionAbsolute.x + parentNode.measured.width / 2,
-        y: panePosition.y - parentNode.internals.positionAbsolute.y + parentNode.measured.height / 2,
-      };
-    },
-    [store, screenToFlowPosition],
-  );
-
-  const onConnectStart: OnConnectStart = useCallback((_, { nodeId }) => {
-    connectingNodeId.current = nodeId;
-  }, []);
-
-  const onConnectEnd: OnConnectEnd = useCallback(
-    (event) => {
-      const { nodeLookup } = store.getState();
-      const targetIsPane = (event.target as Element).classList.contains('react-flow__pane');
-      const node = (event.target as Element).closest('.react-flow__node');
-
-      if (node) {
-        node.querySelector('input')?.focus({ preventScroll: true });
-      } else if (targetIsPane && connectingNodeId.current) {
-        const parentNode = nodeLookup.get(connectingNodeId.current);
-        const childNodePosition = getChildNodePosition(event as MouseEvent);
-        if (parentNode && childNodePosition) addChildNode(parentNode, childNodePosition);
-      }
-    },
-    [getChildNodePosition, addChildNode, store],
-  );
 
   // ─── 휴지통 드래그 삭제 ────────────────────────────────────────────────────
 
@@ -208,8 +161,6 @@ export default function MindMapCanvas({ onBack }: MindMapCanvasProps) {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         nodeOrigin={nodeOrigin}
-        onConnectStart={onConnectStart}
-        onConnectEnd={onConnectEnd}
         onNodeDrag={handleNodeDrag}
         onNodeDragStop={handleNodeDragStop}
         onPaneClick={handlePaneClick}

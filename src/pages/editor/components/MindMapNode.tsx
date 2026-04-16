@@ -156,7 +156,7 @@ function MindMapNode({ id, data, selected }: NodeProps<Node<NodeData>>) {
       </div>
 
       <Handle type="target" position={Position.Top} />
-      <Handle type="source" position={Position.Top} />
+      <Handle type="source" position={Position.Top} style={{ pointerEvents: 'none', opacity: 0 }} />
     </>
   );
 }
