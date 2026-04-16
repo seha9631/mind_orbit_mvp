@@ -88,6 +88,12 @@ function MindMapNode({ id, data, selected }: NodeProps<Node<NodeData>>) {
 
   const handlePointerUp = () => clearTimeout(longPressTimer.current);
 
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    clearTimeout(longPressTimer.current);
+    inputRef.current?.focus({ preventScroll: true });
+  };
+
   const hasChildren = useStore((s) => s.nodes.some((n) => n.parentId === id));
 
   return (
@@ -132,6 +138,7 @@ function MindMapNode({ id, data, selected }: NodeProps<Node<NodeData>>) {
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onDoubleClick={handleDoubleClick}
       >
         <div className="dragHandle">
           <svg viewBox="0 0 24 24">
