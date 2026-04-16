@@ -1,9 +1,9 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 
-import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
-import { saveAppMeta } from '../lib/db'
+import { Badge } from '../shared/ui/badge'
+import { Button } from '../shared/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../shared/ui/card'
+import { saveAppMeta } from '../shared/lib/db'
 
 interface AppErrorBoundaryProps {
   children: ReactNode
