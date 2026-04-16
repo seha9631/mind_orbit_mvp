@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { saveMindMap } from '../lib/db'
-import type { MindMapRecord } from '../types/mindmap'
+import { saveMindMap } from '../../../shared/lib/db'
+import type { MindMapRecord } from '../../../shared/types/mindmap'
 
-type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
+export type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
 
 interface UseAutoSaveMindMapOptions {
   map: MindMapRecord | null

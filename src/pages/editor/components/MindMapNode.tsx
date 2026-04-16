@@ -3,11 +3,11 @@ import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { MoreHorizontal, Plus } from 'lucide-react'
 import { flushSync } from 'react-dom'
 
-import { Button } from '../../components/ui/button'
-import { Card } from '../../components/ui/card'
-import { Input } from '../../components/ui/input'
-import { cn } from '../../lib/utils'
-import type { MindFlowNode } from './mindNodeTypes'
+import { Button } from '../../../shared/ui/button'
+import { Card } from '../../../shared/ui/card'
+import { Input } from '../../../shared/ui/input'
+import { cn } from '../../../shared/lib/utils'
+import type { MindFlowNode } from '../mindNodeTypes'
 
 function withAlpha(hex: string, alpha: number) {
   const normalized = hex.replace('#', '')

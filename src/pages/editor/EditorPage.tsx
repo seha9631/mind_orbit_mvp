@@ -1,18 +1,19 @@
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useState, type CSSProperties } from 'react'
 
-import { Button } from '../../components/ui/button'
-import { Card, CardContent } from '../../components/ui/card'
-import { saveAppMeta } from '../../lib/db'
-import type { DeviceClass } from '../../types/mindmap'
-import { useAutoSaveMindMap } from '../../hooks/useAutoSaveMindMap'
-import { useMindMapEditor } from '../../hooks/useMindMapEditor'
-import { EditorActionDock } from './EditorActionDock'
-import { EditorBottomSheet } from './EditorBottomSheet'
-import { FloatingAddButton } from './FloatingAddButton'
-import { EditorKeyboardAddButtons } from './EditorKeyboardAddButtons'
-import { MindMapCanvas } from './MindMapCanvas'
-import { EditorTopBar } from './EditorTopBar'
+import { Button } from '../../shared/ui/button'
+import { Card, CardContent } from '../../shared/ui/card'
+import { saveAppMeta } from '../../shared/lib/db'
+import type { DeviceClass } from '../../shared/types/mindmap'
+import { useAutoSaveMindMap } from './hooks/useAutoSaveMindMap'
+import { useEditorKeyboard } from './hooks/useEditorKeyboard'
+import { useMindMapEditor } from './hooks/useMindMapEditor'
+import { EditorActionDock } from './components/EditorActionDock'
+import { EditorBottomSheet } from './components/EditorBottomSheet'
+import { FloatingAddButton } from './components/FloatingAddButton'
+import { EditorKeyboardAddButtons } from './components/EditorKeyboardAddButtons'
+import { MindMapCanvas } from './components/MindMapCanvas'
+import { EditorTopBar } from './components/EditorTopBar'
 
 interface EditorPageProps {
   deviceClass: DeviceClass
@@ -42,19 +43,23 @@ export function EditorPage({
   onGoHome,
 }: EditorPageProps) {
   const [fitViewToken, setFitViewToken] = useState(0)
+
   const editor = useMindMapEditor({
     deviceClass,
     keyboardVisible,
     mapId,
   })
+
   const { flush, lastSavedAt, saveStateLabel } = useAutoSaveMindMap({
     dirty: editor.isDirty,
     map: editor.map,
     onSaved: editor.markPersisted,
   })
 
+  useEditorKeyboard(editor, deviceClass)
+
   useEffect(() => {
-    if (!editor.map) {
+    if (!editor.map?.id) {
       return
     }
 
@@ -62,66 +67,7 @@ export function EditorPage({
       lastOpenedMapId: editor.map.id,
       lastScreen: 'editor',
     })
-  }, [editor.map])
-
-  useEffect(() => {
-    if (deviceClass === 'mobile') {
-      return
-    }
-
-    const handleKeydown = (event: KeyboardEvent) => {
-      const activeElement = document.activeElement as HTMLElement | null
-      const isTypingTarget =
-        !!activeElement &&
-        (activeElement.tagName === 'INPUT' ||
-          activeElement.tagName === 'TEXTAREA' ||
-          activeElement.isContentEditable)
-
-      if (event.key === 'Escape') {
-        editor.closeSheet()
-        editor.stopEditing()
-        return
-      }
-
-      if (editor.editingNodeId) {
-        if (event.key === 'Enter') {
-          event.preventDefault()
-          editor.stopEditing()
-        }
-        return
-      }
-
-      if (isTypingTarget) {
-        return
-      }
-
-      if (event.key === 'Tab') {
-        event.preventDefault()
-        editor.addChild()
-      }
-
-      if (event.key === 'Enter') {
-        event.preventDefault()
-
-        if (editor.selectedNodeId && editor.selectedNodeId !== editor.map?.rootNodeId) {
-          editor.addSibling()
-        } else {
-          editor.addChild()
-        }
-      }
-
-      if ((event.key === 'Backspace' || event.key === 'Delete') && editor.selectedNodeId) {
-        event.preventDefault()
-        editor.deleteSelected()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeydown)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeydown)
-    }
-  }, [deviceClass, editor])
+  }, [editor.map?.id])
 
   async function handleGoHome() {
     await flush()
@@ -162,12 +108,16 @@ export function EditorPage({
   const canAddSibling = selectedNodeId !== editor.map.rootNodeId
   const keyboardSafeOffset =
     deviceClass === 'desktop' || !keyboardVisible ? 0 : Math.max(0, keyboardInset - 28)
+
   const editorStyle = {
     '--keyboard-safe-offset': `${keyboardSafeOffset}px`,
   } as CSSProperties
 
   return (
-    <main className="bg-editor-shell relative min-h-dvh min-h-svh overflow-hidden" style={editorStyle}>
+    <main
+      className="bg-editor-shell relative min-h-dvh min-h-svh overflow-hidden"
+      style={editorStyle}
+    >
       <Button
         className="absolute z-10 size-12 rounded-full px-0"
         onClick={() => void handleGoHome()}

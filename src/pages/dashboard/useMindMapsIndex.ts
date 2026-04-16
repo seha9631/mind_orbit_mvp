@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 
-import { createDefaultMindMap } from '../lib/createDefaultMindMap'
-import { deleteMindMap, getAppMeta, listMindMaps, saveAppMeta, saveMindMap } from '../lib/db'
-import type { MindMapRecord } from '../types/mindmap'
+import { createDefaultMindMap } from '../../shared/lib/createDefaultMindMap'
+import { deleteMindMap, getAppMeta, listMindMaps, saveAppMeta, saveMindMap } from '../../shared/lib/db'
+import type { MindMapRecord } from '../../shared/types/mindmap'
 
 function buildDefaultTitle(maps: MindMapRecord[]) {
   return maps.length === 0 ? '나의 새 마인드맵' : `나의 마인드맵 ${maps.length + 1}`

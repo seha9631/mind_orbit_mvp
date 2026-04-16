@@ -1,6 +1,6 @@
 import type { Node } from '@xyflow/react'
 
-import type { DeviceClass } from '../../types/mindmap'
+import type { DeviceClass } from '../../shared/types/mindmap'
 
 type MindNodeAction =
   | (() => void)

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { FolderPlus, Sparkles } from 'lucide-react'
 
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { Card, CardContent } from '../../components/ui/card'
-import { Input } from '../../components/ui/input'
+import { Badge } from '../../shared/ui/badge'
+import { Button } from '../../shared/ui/button'
+import { Card, CardContent } from '../../shared/ui/card'
+import { Input } from '../../shared/ui/input'
 import {
   Sheet,
   SheetContent,
@@ -12,8 +12,8 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-} from '../../components/ui/sheet'
-import type { DeviceClass } from '../../types/mindmap'
+} from '../../shared/ui/sheet'
+import type { DeviceClass } from '../../shared/types/mindmap'
 
 interface CreateMapSheetProps {
   deviceClass: DeviceClass
