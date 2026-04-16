@@ -1,5 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 
 import { Button } from '../../shared/ui/button'
 import { Card, CardContent } from '../../shared/ui/card'
@@ -73,6 +73,23 @@ export function EditorPage({
     await flush()
     onGoHome()
   }
+
+  // MindMapCanvas로 넘기는 inline 핸들러가 매 렌더마다 새 참조가 되면
+  // MindMapNode의 data prop이 매번 바뀌어 타이핑 중 모든 노드가 리렌더된다.
+  const { selectNode, openSheet, addChild } = editor
+  const handleOpenMoreFromNode = useCallback(
+    (nodeId: string) => {
+      selectNode(nodeId)
+      openSheet('more')
+    },
+    [openSheet, selectNode],
+  )
+  const handleQuickAddChild = useCallback(
+    (nodeId: string) => {
+      addChild(nodeId)
+    },
+    [addChild],
+  )
 
   if (editor.loading) {
     return (
@@ -161,11 +178,8 @@ export function EditorPage({
         map={editor.map}
         onChangeLabel={editor.changeNodeText}
         onMoveNode={editor.updateNodePosition}
-        onOpenMore={(nodeId) => {
-          editor.selectNode(nodeId)
-          editor.openSheet('more')
-        }}
-        onQuickAddChild={(nodeId) => editor.addChild(nodeId)}
+        onOpenMore={handleOpenMoreFromNode}
+        onQuickAddChild={handleQuickAddChild}
         onSelectNode={editor.selectNode}
         onSetViewport={editor.setViewportState}
         onStartEditing={editor.startEditing}

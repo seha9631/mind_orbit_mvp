@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from 'react'
+import { memo, useEffect, useRef, type CSSProperties } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { MoreHorizontal, Plus } from 'lucide-react'
 import { flushSync } from 'react-dom'
@@ -46,7 +46,7 @@ function getWidthClass(
   }
 }
 
-export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
+function MindMapNodeComponent({ data, selected }: NodeProps<MindFlowNode>) {
   const longPressRef = useRef<number | null>(null)
   const longPressTriggeredRef = useRef(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -354,3 +354,7 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
     </div>
   )
 }
+
+// React.memo: MindMapCanvas가 memoize된 data를 넘기므로,
+// selected/dragging/data 참조가 같으면 타이핑 중 다른 노드가 리렌더되지 않는다.
+export const MindMapNode = memo(MindMapNodeComponent)
