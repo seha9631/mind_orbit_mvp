@@ -28,6 +28,7 @@ export interface MindMapRecord {
   rootNodeId: string
   nodes: MindMapNodeRecord[]
   viewport: ViewportState
+  isFavorite?: boolean
 }
 
 export interface AppMetaRecord {

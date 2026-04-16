@@ -1,16 +1,20 @@
 import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Star, Trash2 } from 'lucide-react'
 
 import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { cn } from '../../lib/utils'
 import { useMindMapsIndex } from '../../hooks/useMindMapsIndex'
 import type { DeviceClass, MindMapRecord } from '../../types/mindmap'
-import { CreateMapSheet } from './CreateMapSheet'
+import { DeleteConfirmDialog } from './DeleteConfirmDialog'
 
-interface DashboardPageProps {
-  deviceClass: DeviceClass
-  onOpenMap: (mapId: string) => void
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type Filter = 'all' | 'favorites'
+
+interface PendingDelete {
+  id: string
+  title: string
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -19,6 +23,11 @@ const GRID_COLS: Record<DeviceClass, string> = {
   mobile: 'grid-cols-1',
   tablet: 'grid-cols-2',
   desktop: 'grid-cols-3',
+}
+
+const TAB_LABELS: Record<Filter, string> = {
+  all: 'All',
+  favorites: 'Favorites',
 }
 
 function formatDateLabel(value: string) {
@@ -35,9 +44,10 @@ interface MapCardProps {
   alwaysShowDelete: boolean
   onOpen: () => void
   onDelete: () => void
+  onToggleFavorite: () => void
 }
 
-function MapCard({ map, alwaysShowDelete, onOpen, onDelete }: MapCardProps) {
+function MapCard({ map, alwaysShowDelete, onOpen, onDelete, onToggleFavorite }: MapCardProps) {
   return (
     <Card
       className="group relative cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_64px_rgba(17,24,39,0.12)]"
@@ -51,7 +61,7 @@ function MapCard({ map, alwaysShowDelete, onOpen, onDelete }: MapCardProps) {
       role="button"
       tabIndex={0}
     >
-      <CardHeader className="pb-2 pr-10">
+      <CardHeader className="pb-2 pr-20">
         <CardTitle className="text-base font-semibold leading-snug">{map.title}</CardTitle>
       </CardHeader>
       <CardContent className="flex items-center justify-between pt-0">
@@ -60,6 +70,27 @@ function MapCard({ map, alwaysShowDelete, onOpen, onDelete }: MapCardProps) {
         </p>
         <p className="text-xs text-muted-foreground/60">{map.nodes.length}개 노드</p>
       </CardContent>
+
+      {/* Favorite toggle */}
+      <Button
+        className={cn(
+          'absolute right-11 top-3 size-8 transition-all duration-150',
+          map.isFavorite
+            ? 'text-amber-400 hover:text-amber-500'
+            : 'text-muted-foreground/35 hover:text-amber-400',
+        )}
+        onClick={(event) => {
+          event.stopPropagation()
+          onToggleFavorite()
+        }}
+        size="icon"
+        type="button"
+        variant="ghost"
+      >
+        <Star className={cn('size-3.5', map.isFavorite && 'fill-amber-400')} />
+      </Button>
+
+      {/* Delete */}
       <Button
         className={cn(
           'absolute right-3 top-3 size-8 text-muted-foreground/60 transition-all duration-200 hover:bg-destructive/8 hover:text-destructive',
@@ -67,9 +98,7 @@ function MapCard({ map, alwaysShowDelete, onOpen, onDelete }: MapCardProps) {
         )}
         onClick={(event) => {
           event.stopPropagation()
-          if (window.confirm('이 마인드맵을 삭제할까요?')) {
-            onDelete()
-          }
+          onDelete()
         }}
         size="icon"
         type="button"
@@ -83,20 +112,41 @@ function MapCard({ map, alwaysShowDelete, onOpen, onDelete }: MapCardProps) {
 
 // ── DashboardPage ─────────────────────────────────────────────────────────────
 
-export function DashboardPage({ deviceClass, onOpenMap }: DashboardPageProps) {
-  const { maps, loading, error, createMap, removeMap } = useMindMapsIndex()
-  const [sheetOpen, setSheetOpen] = useState(false)
+interface DashboardPageProps {
+  deviceClass: DeviceClass
+  onOpenMap: (mapId: string) => void
+}
 
-  async function handleCreate(title: string) {
-    const map = await createMap(title)
-    setSheetOpen(false)
-    onOpenMap(map.id)
+export function DashboardPage({ deviceClass, onOpenMap }: DashboardPageProps) {
+  const { maps, loading, error, createMap, removeMap, toggleFavorite } = useMindMapsIndex()
+  const [filter, setFilter] = useState<Filter>('all')
+  const [creating, setCreating] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
+
+  const filteredMaps = filter === 'favorites' ? maps.filter((m) => m.isFavorite) : maps
+
+  async function handleCreate() {
+    if (creating) return
+    try {
+      setCreating(true)
+      const map = await createMap('')
+      onOpenMap(map.id)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  function handleDeleteConfirm() {
+    if (!pendingDelete) return
+    void removeMap(pendingDelete.id)
+    setPendingDelete(null)
   }
 
   return (
     <main className="bg-editor-shell min-h-dvh min-h-svh px-5 py-6 sm:px-8 lg:px-10">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
-        <header className="flex items-center justify-between gap-4">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+        {/* Header */}
+        <header className="flex flex-col gap-3">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Mind Orbit
@@ -107,10 +157,25 @@ export function DashboardPage({ deviceClass, onOpenMap }: DashboardPageProps) {
               </span>
             ) : null}
           </div>
-          <Button className="h-10 gap-1.5 px-5" onClick={() => setSheetOpen(true)} type="button">
-            <Plus className="size-4" />
-            새 마인드맵
-          </Button>
+
+          {/* Filter tabs */}
+          <div className="flex border-b border-border/40">
+            {(['all', 'favorites'] as const).map((tab) => (
+              <button
+                className={cn(
+                  'mr-4 pb-2 text-sm font-medium transition-colors duration-150',
+                  filter === tab
+                    ? '-mb-px border-b-2 border-primary text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+                key={tab}
+                onClick={() => setFilter(tab)}
+                type="button"
+              >
+                {TAB_LABELS[tab]}
+              </button>
+            ))}
+          </div>
         </header>
 
         {error ? (
@@ -123,37 +188,55 @@ export function DashboardPage({ deviceClass, onOpenMap }: DashboardPageProps) {
           <div className="py-16 text-center text-sm text-muted-foreground">불러오는 중...</div>
         ) : null}
 
+        {/* Empty: no maps at all */}
         {!loading && maps.length === 0 ? (
-          <div className="flex flex-col items-center gap-5 py-24 text-center">
-            <p className="text-sm text-muted-foreground">아직 만든 마인드맵이 없어요</p>
-            <Button onClick={() => setSheetOpen(true)} type="button">
-              <Plus className="size-4" />
-              첫 마인드맵 만들기
-            </Button>
+          <div className="py-24 text-center text-sm text-muted-foreground">
+            아직 만든 마인드맵이 없어요
           </div>
         ) : null}
 
-        {!loading && maps.length > 0 ? (
+        {/* Empty: favorites tab but none starred */}
+        {!loading && maps.length > 0 && filteredMaps.length === 0 ? (
+          <div className="py-24 text-center text-sm text-muted-foreground">
+            즐겨찾기한 마인드맵이 없어요
+          </div>
+        ) : null}
+
+        {/* Map grid */}
+        {!loading && filteredMaps.length > 0 ? (
           <section className={cn('grid gap-3', GRID_COLS[deviceClass])}>
-            {maps.map((map) => (
+            {filteredMaps.map((map) => (
               <MapCard
                 alwaysShowDelete={deviceClass === 'mobile'}
                 key={map.id}
                 map={map}
-                onDelete={() => void removeMap(map.id)}
+                onDelete={() => setPendingDelete({ id: map.id, title: map.title })}
                 onOpen={() => onOpenMap(map.id)}
+                onToggleFavorite={() => void toggleFavorite(map.id)}
               />
             ))}
           </section>
         ) : null}
       </div>
 
-      <CreateMapSheet
-        deviceClass={deviceClass}
-        onClose={() => setSheetOpen(false)}
-        onCreate={handleCreate}
-        open={sheetOpen}
-      />
+      {/* FAB — new map */}
+      <button
+        className="fixed bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_18px_40px_rgba(92,112,255,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 disabled:opacity-60"
+        disabled={creating}
+        onClick={() => void handleCreate()}
+        type="button"
+      >
+        <Plus className="size-6" />
+      </button>
+
+      {/* Delete confirmation dialog */}
+      {pendingDelete ? (
+        <DeleteConfirmDialog
+          itemName={pendingDelete.title}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={handleDeleteConfirm}
+        />
+      ) : null}
     </main>
   )
 }

@@ -46,6 +46,13 @@ export async function deleteMindMap(id: string) {
   await db.delete('maps', id)
 }
 
+export async function toggleMindMapFavorite(id: string) {
+  const db = await dbPromise
+  const map = await db.get('maps', id)
+  if (!map) return
+  await db.put('maps', { ...map, isFavorite: !map.isFavorite })
+}
+
 export async function getAppMeta() {
   const db = await dbPromise
   return db.get('meta', META_KEY)
