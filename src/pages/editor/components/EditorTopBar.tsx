@@ -4,10 +4,11 @@ import { Badge } from '../../../shared/ui/badge'
 import { Button } from '../../../shared/ui/button'
 import { cn } from '../../../shared/lib/utils'
 import type { DeviceClass } from '../../../shared/types/mindmap'
+import type { SaveState } from '../hooks/useAutoSaveMindMap'
 
 interface EditorTopBarProps {
   deviceClass: DeviceClass
-  saveState: 'idle' | 'pending' | 'saving' | 'saved' | 'error'
+  saveState: SaveState
   onOpenMore: () => void
   onOpenStyle: () => void
   onResetView: () => void
