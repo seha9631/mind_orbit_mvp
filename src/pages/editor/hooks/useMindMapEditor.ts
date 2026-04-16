@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useReducer } from 'react'
 import type { XYPosition } from '@xyflow/react'
 
 import { getMindMap, saveAppMeta } from '../../../shared/lib/db'
@@ -11,7 +11,12 @@ import {
   updateViewport,
   moveNode,
 } from '../../../shared/lib/mapOperations'
-import type { ActiveSheet, DeviceClass, MindMapRecord, ViewportState } from '../../../shared/types/mindmap'
+import type {
+  ActiveSheet,
+  DeviceClass,
+  MindMapRecord,
+  ViewportState,
+} from '../../../shared/types/mindmap'
 
 interface UseMindMapEditorOptions {
   mapId: string
@@ -19,25 +24,232 @@ interface UseMindMapEditorOptions {
   keyboardVisible: boolean
 }
 
+interface MindMapEditorState {
+  map: MindMapRecord | null
+  loading: boolean
+  error: string | null
+  selectedNodeId: string | null
+  editingNodeId: string | null
+  activeSheet: ActiveSheet
+  lastPersistedUpdatedAt: string | null
+}
+
+type MindMapEditorAction =
+  | { type: 'LOAD_START' }
+  | { type: 'LOAD_SUCCESS'; payload: MindMapRecord }
+  | { type: 'LOAD_NOT_FOUND' }
+  | { type: 'LOAD_ERROR'; payload: string }
+  | { type: 'SELECT_NODE'; payload: string | null }
+  | { type: 'START_EDITING'; payload: string }
+  | { type: 'STOP_EDITING' }
+  | { type: 'CHANGE_NODE_TEXT'; payload: { nodeId: string; text: string } }
+  | { type: 'ADD_CHILD'; payload: { nodeId: string } }
+  | { type: 'ADD_SIBLING'; payload: { nodeId: string } }
+  | { type: 'DELETE_SELECTED'; payload: { nodeId: string } }
+  | { type: 'UPDATE_NODE_POSITION'; payload: { nodeId: string; position: XYPosition } }
+  | { type: 'SET_VIEWPORT'; payload: ViewportState }
+  | { type: 'OPEN_SHEET'; payload: ActiveSheet }
+  | { type: 'CLOSE_SHEET' }
+  | { type: 'CLOSE_SHEET_FOR_KEYBOARD' }
+  | { type: 'MARK_PERSISTED'; payload: string }
+
+const initialState: MindMapEditorState = {
+  map: null,
+  loading: true,
+  error: null,
+  selectedNodeId: null,
+  editingNodeId: null,
+  activeSheet: 'none',
+  lastPersistedUpdatedAt: null,
+}
+
+function mindMapEditorReducer(
+  state: MindMapEditorState,
+  action: MindMapEditorAction,
+): MindMapEditorState {
+  switch (action.type) {
+    case 'LOAD_START':
+      return {
+        ...state,
+        loading: true,
+        error: null,
+      }
+
+    case 'LOAD_SUCCESS': {
+      const safeMap = action.payload
+
+      return {
+        ...state,
+        map: safeMap,
+        loading: false,
+        error: null,
+        selectedNodeId: safeMap.rootNodeId,
+        editingNodeId: null,
+        activeSheet: 'none',
+        lastPersistedUpdatedAt: safeMap.updatedAt,
+      }
+    }
+
+    case 'LOAD_NOT_FOUND':
+      return {
+        ...state,
+        map: null,
+        loading: false,
+        error: '마인드맵을 찾을 수 없어요.',
+      }
+
+    case 'LOAD_ERROR':
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      }
+
+    case 'SELECT_NODE':
+      return {
+        ...state,
+        selectedNodeId: action.payload,
+      }
+
+    case 'START_EDITING':
+      return {
+        ...state,
+        selectedNodeId: action.payload,
+        editingNodeId: action.payload,
+        activeSheet: 'none',
+      }
+
+    case 'STOP_EDITING':
+      return {
+        ...state,
+        editingNodeId: null,
+      }
+
+    case 'CHANGE_NODE_TEXT': {
+      if (!state.map) {
+        return state
+      }
+
+      return {
+        ...state,
+        map: updateNodeText(state.map, action.payload.nodeId, action.payload.text),
+      }
+    }
+
+    case 'ADD_CHILD': {
+      if (!state.map) {
+        return state
+      }
+
+      const result = addChildNode(state.map, action.payload.nodeId)
+
+      return {
+        ...state,
+        map: result.map,
+        selectedNodeId: result.createdNodeId,
+        editingNodeId: result.createdNodeId,
+        activeSheet: 'none',
+      }
+    }
+
+    case 'ADD_SIBLING': {
+      if (!state.map) {
+        return state
+      }
+
+      const result = addSiblingNode(state.map, action.payload.nodeId)
+
+      return {
+        ...state,
+        map: result.map,
+        selectedNodeId: result.createdNodeId,
+        editingNodeId: result.createdNodeId,
+        activeSheet: 'none',
+      }
+    }
+
+    case 'DELETE_SELECTED': {
+      if (!state.map) {
+        return state
+      }
+
+      const result = removeNode(state.map, action.payload.nodeId)
+
+      return {
+        ...state,
+        map: result.map,
+        selectedNodeId: result.nextSelectedNodeId,
+        editingNodeId: null,
+        activeSheet: 'none',
+      }
+    }
+
+    case 'UPDATE_NODE_POSITION': {
+      if (!state.map) {
+        return state
+      }
+
+      return {
+        ...state,
+        map: moveNode(state.map, action.payload.nodeId, action.payload.position),
+      }
+    }
+
+    case 'SET_VIEWPORT': {
+      if (!state.map) {
+        return state
+      }
+
+      return {
+        ...state,
+        map: updateViewport(state.map, action.payload),
+      }
+    }
+
+    case 'OPEN_SHEET':
+      return {
+        ...state,
+        activeSheet: action.payload,
+        editingNodeId: null,
+      }
+
+    case 'CLOSE_SHEET':
+      return {
+        ...state,
+        activeSheet: 'none',
+      }
+
+    case 'CLOSE_SHEET_FOR_KEYBOARD':
+      return {
+        ...state,
+        activeSheet: 'none',
+      }
+
+    case 'MARK_PERSISTED':
+      return {
+        ...state,
+        lastPersistedUpdatedAt: action.payload,
+      }
+
+    default:
+      return state
+  }
+}
+
 export function useMindMapEditor({
   mapId,
   deviceClass,
   keyboardVisible,
 }: UseMindMapEditorOptions) {
-  const [map, setMap] = useState<MindMapRecord | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
-  const [editingNodeId, setEditingNodeId] = useState<string | null>(null)
-  const [activeSheet, setActiveSheet] = useState<ActiveSheet>('none')
-  const [lastPersistedUpdatedAt, setLastPersistedUpdatedAt] = useState<string | null>(null)
+  const [state, dispatch] = useReducer(mindMapEditorReducer, initialState)
 
   useEffect(() => {
     let cancelled = false
 
     async function loadMap() {
+      dispatch({ type: 'LOAD_START' })
+
       try {
-        setLoading(true)
         const nextMap = await getMindMap(mapId)
 
         if (cancelled) {
@@ -49,26 +261,19 @@ export function useMindMapEditor({
             lastOpenedMapId: undefined,
             lastScreen: 'dashboard',
           })
-          setError('마인드맵을 찾을 수 없어요.')
-          setMap(null)
+
+          dispatch({ type: 'LOAD_NOT_FOUND' })
           return
         }
 
         const safeMap = sanitizeMindMap(nextMap)
-
-        setMap(safeMap)
-        setSelectedNodeId(safeMap.rootNodeId)
-        setEditingNodeId(null)
-        setActiveSheet('none')
-        setLastPersistedUpdatedAt(safeMap.updatedAt)
-        setError(null)
+        dispatch({ type: 'LOAD_SUCCESS', payload: safeMap })
       } catch {
         if (!cancelled) {
-          setError('마인드맵을 불러오지 못했어요.')
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
+          dispatch({
+            type: 'LOAD_ERROR',
+            payload: '마인드맵을 불러오지 못했어요.',
+          })
         }
       }
     }
@@ -85,100 +290,91 @@ export function useMindMapEditor({
       return
     }
 
-    setActiveSheet('none')
+    dispatch({ type: 'CLOSE_SHEET_FOR_KEYBOARD' })
   }, [deviceClass, keyboardVisible])
 
-  const isDirty = !!map && lastPersistedUpdatedAt !== map.updatedAt
+  const isDirty = !!state.map && state.lastPersistedUpdatedAt !== state.map.updatedAt
 
   function selectNode(nodeId: string | null) {
-    setSelectedNodeId(nodeId)
+    dispatch({ type: 'SELECT_NODE', payload: nodeId })
   }
 
   function startEditing(nodeId: string) {
-    setSelectedNodeId(nodeId)
-    setEditingNodeId(nodeId)
-    setActiveSheet('none')
+    dispatch({ type: 'START_EDITING', payload: nodeId })
   }
 
   function stopEditing() {
-    setEditingNodeId(null)
+    dispatch({ type: 'STOP_EDITING' })
   }
 
   function changeNodeText(nodeId: string, text: string) {
-    setMap((current) => (current ? updateNodeText(current, nodeId, text) : current))
-  }
-
-  function addChild(nodeId = selectedNodeId ?? map?.rootNodeId ?? '') {
-    setMap((current) => {
-      if (!current) {
-        return current
-      }
-
-      const result = addChildNode(current, nodeId)
-      setSelectedNodeId(result.createdNodeId)
-      setEditingNodeId(result.createdNodeId)
-      setActiveSheet('none')
-      return result.map
+    dispatch({
+      type: 'CHANGE_NODE_TEXT',
+      payload: { nodeId, text },
     })
   }
 
-  function addSibling(nodeId = selectedNodeId ?? map?.rootNodeId ?? '') {
-    setMap((current) => {
-      if (!current) {
-        return current
-      }
-
-      const result = addSiblingNode(current, nodeId)
-      setSelectedNodeId(result.createdNodeId)
-      setEditingNodeId(result.createdNodeId)
-      setActiveSheet('none')
-      return result.map
+  function addChild(nodeId = state.selectedNodeId ?? state.map?.rootNodeId ?? '') {
+    dispatch({
+      type: 'ADD_CHILD',
+      payload: { nodeId },
     })
   }
 
-  function deleteSelected(nodeId = selectedNodeId ?? '') {
-    setMap((current) => {
-      if (!current) {
-        return current
-      }
+  function addSibling(nodeId = state.selectedNodeId ?? state.map?.rootNodeId ?? '') {
+    dispatch({
+      type: 'ADD_SIBLING',
+      payload: { nodeId },
+    })
+  }
 
-      const result = removeNode(current, nodeId)
-      setSelectedNodeId(result.nextSelectedNodeId)
-      setEditingNodeId(null)
-      setActiveSheet('none')
-      return result.map
+  function deleteSelected(nodeId = state.selectedNodeId ?? '') {
+    dispatch({
+      type: 'DELETE_SELECTED',
+      payload: { nodeId },
     })
   }
 
   function updateNodePosition(nodeId: string, position: XYPosition) {
-    setMap((current) => (current ? moveNode(current, nodeId, position) : current))
+    dispatch({
+      type: 'UPDATE_NODE_POSITION',
+      payload: { nodeId, position },
+    })
   }
 
   function setViewportState(viewport: ViewportState) {
-    setMap((current) => (current ? updateViewport(current, viewport) : current))
+    dispatch({
+      type: 'SET_VIEWPORT',
+      payload: viewport,
+    })
   }
 
   function openSheet(sheet: ActiveSheet) {
-    setActiveSheet(sheet)
-    setEditingNodeId(null)
+    dispatch({
+      type: 'OPEN_SHEET',
+      payload: sheet,
+    })
   }
 
   function closeSheet() {
-    setActiveSheet('none')
+    dispatch({ type: 'CLOSE_SHEET' })
   }
 
   function markPersisted(updatedAt: string) {
-    setLastPersistedUpdatedAt(updatedAt)
+    dispatch({
+      type: 'MARK_PERSISTED',
+      payload: updatedAt,
+    })
   }
 
   return {
-    map,
-    loading,
-    error,
+    map: state.map,
+    loading: state.loading,
+    error: state.error,
     isDirty,
-    selectedNodeId,
-    editingNodeId,
-    activeSheet,
+    selectedNodeId: state.selectedNodeId,
+    editingNodeId: state.editingNodeId,
+    activeSheet: state.activeSheet,
     keyboardVisible,
     deviceClass,
     selectNode,
