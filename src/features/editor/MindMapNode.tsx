@@ -168,9 +168,17 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
     >
       <Handle
         className="!size-2.5 !border-0 !bg-transparent"
+        id="left-target"
         position={Position.Left}
         style={{ opacity: data.isRoot ? 0 : 0.001 }}
         type="target"
+      />
+      <Handle
+        className="!size-2.5 !border-0 !bg-transparent"
+        id="left-source"
+        position={Position.Left}
+        style={{ opacity: data.isRoot ? 0 : 0.001 }}
+        type="source"
       />
 
       <div className="relative">
@@ -264,9 +272,17 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
 
       <Handle
         className="!size-2.5 !border-0 !bg-transparent"
+        id="right-source"
         position={Position.Right}
         style={{ opacity: 0.001 }}
         type="source"
+      />
+      <Handle
+        className="!size-2.5 !border-0 !bg-transparent"
+        id="right-target"
+        position={Position.Right}
+        style={{ opacity: data.isRoot ? 0 : 0.001 }}
+        type="target"
       />
     </div>
   )

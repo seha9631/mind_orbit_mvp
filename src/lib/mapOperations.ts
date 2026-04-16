@@ -388,11 +388,15 @@ export function buildFlowEdges(map: MindMapRecord) {
     .filter((node) => node.parentId)
     .map((node) => {
       const color = branchColors.get(node.id) ?? '#89b6ff'
+      const parent = findNode(map, node.parentId as string)
+      const isLeftSide = parent ? node.position.x < parent.position.x : false
 
       return {
         id: `${node.parentId}-${node.id}`,
         source: node.parentId as string,
         target: node.id,
+        sourceHandle: isLeftSide ? 'left-source' : 'right-source',
+        targetHandle: isLeftSide ? 'right-target' : 'left-target',
         type: 'bezier',
         animated: false,
         style: {
