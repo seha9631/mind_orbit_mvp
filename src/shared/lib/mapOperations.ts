@@ -5,18 +5,9 @@ import type { MindMapNodeRecord, MindMapRecord } from '../types/mindmap'
 const ROOT_PLACEHOLDER = '중심 생각'
 
 const BRANCH_COLORS = ['#ef8d74', '#f5b48d', '#7cb7c7', '#4c6f89', '#89b6ff']
-const ROOT_BRANCH_ANGLES = [-12, 28, 68, 122, 180, 220, 258, 308]
 const ROOT_BRANCH_RADIUS = 264
-const ROOT_BRANCH_RING_STEP = 68
-const ROOT_BRANCH_TANGENT_OFFSET = 22
 const CHILD_BRANCH_DISTANCE = 264
 const CHILD_LANE_GAP = 112
-const SEARCH_FORWARD_STEP = 108
-const SEARCH_LATERAL_STEP = 104
-const MAX_POSITION_SEARCH_DEPTH = 10
-const MAX_POSITION_SEARCH_LANES = 6
-const MIN_NODE_CENTER_GAP_X = 248
-const MIN_NODE_CENTER_GAP_Y = 92
 
 function stampMap(map: MindMapRecord) {
   return {
@@ -47,144 +38,96 @@ function getRootBranchId(map: MindMapRecord, nodeId: string) {
   return current?.id ?? map.rootNodeId
 }
 
-function getVectorFromAngle(angle: number) {
-  const radians = (angle * Math.PI) / 180
+// 노드가 루트 기준으로 왼쪽/오른쪽 중 어느 쪽에 속하는지 반환
+function getNodeSide(map: MindMapRecord, nodeId: string): 'left' | 'right' {
+  const root = getRootNode(map)
 
-  return {
-    x: Math.cos(radians),
-    y: Math.sin(radians),
-  }
-}
-
-function normalizeVector(vector: XYPosition, fallback: XYPosition) {
-  const length = Math.hypot(vector.x, vector.y)
-
-  if (length < 0.001) {
-    return fallback
+  if (!root) {
+    return 'right'
   }
 
-  return {
-    x: vector.x / length,
-    y: vector.y / length,
-  }
-}
+  const branchRootId = getRootBranchId(map, nodeId)
 
-function getPerpendicular(vector: XYPosition) {
-  return {
-    x: -vector.y,
-    y: vector.x,
-  }
-}
-
-function getAlternatingOffset(index: number) {
-  if (index === 0) {
-    return 0
+  if (branchRootId === map.rootNodeId) {
+    return 'right'
   }
 
-  const magnitude = Math.ceil(index / 2)
-  return index % 2 === 1 ? magnitude : -magnitude
-}
+  const branchRoot = findNode(map, branchRootId)
 
-function getRootBranchDirection(index: number) {
-  const angle = ROOT_BRANCH_ANGLES[index % ROOT_BRANCH_ANGLES.length]
-  return getVectorFromAngle(angle)
-}
-
-function collidesWithNode(position: XYPosition, node: MindMapNodeRecord) {
-  return (
-    Math.abs(position.x - node.position.x) < MIN_NODE_CENTER_GAP_X &&
-    Math.abs(position.y - node.position.y) < MIN_NODE_CENTER_GAP_Y
-  )
-}
-
-function isPositionAvailable(map: MindMapRecord, position: XYPosition) {
-  return map.nodes.every((node) => !collidesWithNode(position, node))
-}
-
-function findOpenPosition(
-  map: MindMapRecord,
-  basePosition: XYPosition,
-  forwardVector: XYPosition,
-  lateralVector: XYPosition,
-) {
-  if (isPositionAvailable(map, basePosition)) {
-    return basePosition
+  if (!branchRoot) {
+    return 'right'
   }
 
-  // Keep searching in a widening grid so newly added nodes preserve a readable gap.
-  for (let depth = 0; depth <= MAX_POSITION_SEARCH_DEPTH; depth += 1) {
-    for (let laneIndex = 0; laneIndex <= MAX_POSITION_SEARCH_LANES * 2; laneIndex += 1) {
-      const laneOffset = getAlternatingOffset(laneIndex)
-      const candidate = {
-        x:
-          basePosition.x +
-          forwardVector.x * depth * SEARCH_FORWARD_STEP +
-          lateralVector.x * laneOffset * SEARCH_LATERAL_STEP,
-        y:
-          basePosition.y +
-          forwardVector.y * depth * SEARCH_FORWARD_STEP +
-          lateralVector.y * laneOffset * SEARCH_LATERAL_STEP,
-      }
-
-      if (isPositionAvailable(map, candidate)) {
-        return candidate
-      }
-    }
-  }
-
-  return {
-    x: basePosition.x + forwardVector.x * (MAX_POSITION_SEARCH_DEPTH + 1) * SEARCH_FORWARD_STEP,
-    y: basePosition.y + forwardVector.y * (MAX_POSITION_SEARCH_DEPTH + 1) * SEARCH_FORWARD_STEP,
-  }
+  return branchRoot.position.x < root.position.x ? 'left' : 'right'
 }
 
-function getNextRootBranchPosition(map: MindMapRecord, parent: MindMapNodeRecord) {
-  const siblings = getChildren(map, parent.id)
-  const index = siblings.length
-  const ring = Math.floor(index / ROOT_BRANCH_ANGLES.length)
-  const direction = getRootBranchDirection(index)
-  const tangent = getPerpendicular(direction)
-  const radius = ROOT_BRANCH_RADIUS + ring * ROOT_BRANCH_RING_STEP
-  const tangentOffset = getAlternatingOffset(ring) * ROOT_BRANCH_TANGENT_OFFSET
-  const basePosition = {
-    x: parent.position.x + direction.x * radius + tangent.x * tangentOffset,
-    y: parent.position.y + direction.y * radius + tangent.y * tangentOffset,
-  }
+// 노드 배열을 centerY 기준으로 CHILD_LANE_GAP 간격으로 세로 균등 배치.
+// 배열 순서(삽입 순서)를 유지하므로 새 노드는 항상 마지막(아래)에 배치됨.
+function distributeVertically(
+  nodes: MindMapNodeRecord[],
+  centerY: number,
+): MindMapNodeRecord[] {
+  const N = nodes.length
 
-  return findOpenPosition(map, basePosition, direction, tangent)
+  return nodes.map((node, i) => ({
+    ...node,
+    position: {
+      ...node.position,
+      y: centerY + (i - (N - 1) / 2) * CHILD_LANE_GAP,
+    },
+  }))
 }
 
-function getNextChildPosition(map: MindMapRecord, parent: MindMapNodeRecord) {
-  const siblings = getChildren(map, parent.id)
+// 특정 부모의 자식들을 세로로 재분배.
+// 루트 자식은 좌/우 그룹을 각각 독립적으로 재분배.
+function redistributeChildrenOf(
+  nodes: MindMapNodeRecord[],
+  parentId: string,
+  parentX: number,
+  parentY: number,
+  rootNodeId: string,
+): MindMapNodeRecord[] {
+  const children = nodes.filter((n) => n.parentId === parentId)
+
+  if (children.length === 0) {
+    return nodes
+  }
+
+  let updated: MindMapNodeRecord[]
+
+  if (parentId === rootNodeId) {
+    const rightChildren = children.filter((c) => c.position.x >= parentX)
+    const leftChildren = children.filter((c) => c.position.x < parentX)
+
+    updated = [
+      ...distributeVertically(rightChildren, parentY),
+      ...distributeVertically(leftChildren, parentY),
+    ]
+  } else {
+    updated = distributeVertically(children, parentY)
+  }
+
+  const updatedIds = new Set(updated.map((n) => n.id))
+
+  return [...nodes.filter((n) => !updatedIds.has(n.id)), ...updated]
+}
+
+// 새 자식 노드의 x 좌표를 컬럼 기반으로 계산
+function getNextChildX(map: MindMapRecord, parent: MindMapNodeRecord): number {
+  const root = getRootNode(map)
 
   if (parent.id === map.rootNodeId) {
-    return getNextRootBranchPosition(map, parent)
+    const siblings = getChildren(map, parent.id)
+    const isRight = siblings.length % 2 === 0
+
+    return parent.position.x + (isRight ? ROOT_BRANCH_RADIUS : -ROOT_BRANCH_RADIUS)
   }
 
-  const root = getRootNode(map)
-  const outwardVector = normalizeVector(
-    root
-      ? {
-          x: parent.position.x - root.position.x,
-          y: parent.position.y - root.position.y,
-        }
-      : {
-          x: 1,
-          y: 0,
-        },
-    {
-      x: 1,
-      y: 0,
-    },
-  )
-  const perpendicular = getPerpendicular(outwardVector)
-  const siblingOffset = getAlternatingOffset(siblings.length) * CHILD_LANE_GAP
-  const basePosition = {
-    x: parent.position.x + outwardVector.x * CHILD_BRANCH_DISTANCE + perpendicular.x * siblingOffset,
-    y: parent.position.y + outwardVector.y * CHILD_BRANCH_DISTANCE + perpendicular.y * siblingOffset,
-  }
+  const side = root
+    ? getNodeSide(map, parent.id)
+    : 'right'
 
-  return findOpenPosition(map, basePosition, outwardVector, perpendicular)
+  return parent.position.x + (side === 'right' ? CHILD_BRANCH_DISTANCE : -CHILD_BRANCH_DISTANCE)
 }
 
 function collectDescendantIds(map: MindMapRecord, nodeId: string): Set<string> {
@@ -252,20 +195,31 @@ export function addChildNode(map: MindMapRecord, parentId: string) {
   }
 
   const childId = crypto.randomUUID()
-  const nextMap = stampMap({
-    ...map,
-    nodes: [
-      ...map.nodes,
-      {
-        id: childId,
-        parentId: parent.id,
-        text: '',
-        position: getNextChildPosition(map, parent),
+  const nodesWithChild = [
+    ...map.nodes,
+    {
+      id: childId,
+      parentId: parent.id,
+      text: '',
+      position: {
+        x: getNextChildX(map, parent),
+        y: parent.position.y,
       },
-    ],
-  })
+    },
+  ]
 
-  return { map: nextMap, createdNodeId: childId }
+  const redistributed = redistributeChildrenOf(
+    nodesWithChild,
+    parent.id,
+    parent.position.x,
+    parent.position.y,
+    map.rootNodeId,
+  )
+
+  return {
+    map: stampMap({ ...map, nodes: redistributed }),
+    createdNodeId: childId,
+  }
 }
 
 export function addSiblingNode(map: MindMapRecord, nodeId: string) {
@@ -282,24 +236,35 @@ export function addSiblingNode(map: MindMapRecord, nodeId: string) {
   }
 
   const siblingId = crypto.randomUUID()
-  const nextMap = stampMap({
-    ...map,
-    nodes: [
-      ...map.nodes,
-      {
-        id: siblingId,
-        parentId: node.parentId,
-        text: '',
-        position: getNextChildPosition(map, parent),
+  const nodesWithSibling = [
+    ...map.nodes,
+    {
+      id: siblingId,
+      parentId: parent.id,
+      text: '',
+      position: {
+        x: getNextChildX(map, parent),
+        y: parent.position.y,
       },
-    ],
-  })
+    },
+  ]
 
-  return { map: nextMap, createdNodeId: siblingId }
+  const redistributed = redistributeChildrenOf(
+    nodesWithSibling,
+    parent.id,
+    parent.position.x,
+    parent.position.y,
+    map.rootNodeId,
+  )
+
+  return {
+    map: stampMap({ ...map, nodes: redistributed }),
+    createdNodeId: siblingId,
+  }
 }
 
 export function updateNodeText(map: MindMapRecord, nodeId: string, text: string) {
-  const nextMap = stampMap({
+  return stampMap({
     ...map,
     title:
       nodeId === map.rootNodeId && text.trim()
@@ -314,8 +279,6 @@ export function updateNodeText(map: MindMapRecord, nodeId: string, text: string)
         : node,
     ),
   })
-
-  return nextMap
 }
 
 export function moveNode(map: MindMapRecord, nodeId: string, position: XYPosition) {
@@ -323,10 +286,7 @@ export function moveNode(map: MindMapRecord, nodeId: string, position: XYPositio
     ...map,
     nodes: map.nodes.map((node) =>
       node.id === nodeId
-        ? {
-            ...node,
-            position,
-          }
+        ? { ...node, position }
         : node,
     ),
   })
@@ -351,13 +311,24 @@ export function removeNode(map: MindMapRecord, nodeId: string) {
   }
 
   const blocked = collectDescendantIds(map, nodeId)
-  const nextMap = stampMap({
-    ...map,
-    nodes: map.nodes.filter((node) => !blocked.has(node.id)),
-  })
+  let nodesAfterRemoval = map.nodes.filter((node) => !blocked.has(node.id))
+
+  if (target.parentId) {
+    const parent = map.nodes.find((n) => n.id === target.parentId)
+
+    if (parent) {
+      nodesAfterRemoval = redistributeChildrenOf(
+        nodesAfterRemoval,
+        target.parentId,
+        parent.position.x,
+        parent.position.y,
+        map.rootNodeId,
+      )
+    }
+  }
 
   return {
-    map: nextMap,
+    map: stampMap({ ...map, nodes: nodesAfterRemoval }),
     nextSelectedNodeId: target.parentId ?? map.rootNodeId,
   }
 }
