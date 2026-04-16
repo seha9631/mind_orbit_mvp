@@ -174,14 +174,16 @@ export function EditorPage({
         selectedNodeId={editor.selectedNodeId}
       />
 
-      <EditorActionDock
-        canAddSibling={canAddSibling}
-        deviceClass={deviceClass}
-        onAddChild={() => editor.addChild()}
-        onAddSibling={() => editor.addSibling()}
-        onOpenMore={() => editor.openSheet('more')}
-        onOpenStyle={() => editor.openSheet('style')}
-      />
+      {deviceClass === 'desktop' || !keyboardVisible ? (
+        <EditorActionDock
+          canAddSibling={canAddSibling}
+          deviceClass={deviceClass}
+          onAddChild={() => editor.addChild()}
+          onAddSibling={() => editor.addSibling()}
+          onOpenMore={() => editor.openSheet('more')}
+          onOpenStyle={() => editor.openSheet('style')}
+        />
+      ) : null}
 
       <EditorKeyboardAddButtons
         canAddSibling={canAddSibling}

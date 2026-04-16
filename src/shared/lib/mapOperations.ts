@@ -94,6 +94,26 @@ function getPerpendicular(vector: XYPosition) {
   }
 }
 
+function orientVectorTopToBottom(vector: XYPosition) {
+  if (vector.y > 0) {
+    return vector
+  }
+
+  if (vector.y < 0) {
+    return {
+      x: -vector.x,
+      y: -vector.y,
+    }
+  }
+
+  return vector.x >= 0
+    ? vector
+    : {
+        x: -vector.x,
+        y: -vector.y,
+      }
+}
+
 function getAlternatingOffset(index: number) {
   if (index === 0) {
     return 0
@@ -195,14 +215,37 @@ function getNextChildPosition(map: MindMapRecord, parent: MindMapNodeRecord) {
       y: 0,
     },
   )
-  const perpendicular = getPerpendicular(outwardVector)
-  const siblingOffset = getAlternatingOffset(siblings.length) * CHILD_LANE_GAP
+  const perpendicular = orientVectorTopToBottom(getPerpendicular(outwardVector))
+  const siblingOffset = siblings.length * CHILD_LANE_GAP
   const basePosition = {
     x: parent.position.x + outwardVector.x * CHILD_BRANCH_DISTANCE + perpendicular.x * siblingOffset,
     y: parent.position.y + outwardVector.y * CHILD_BRANCH_DISTANCE + perpendicular.y * siblingOffset,
   }
 
   return findOpenPosition(map, basePosition, outwardVector, perpendicular)
+}
+
+function getNextSiblingPosition(map: MindMapRecord, node: MindMapNodeRecord) {
+  if (!node.parentId) {
+    return getNextChildPosition(map, node)
+  }
+
+  const siblings = getChildren(map, node.parentId)
+  const stackBottom = siblings.reduce(
+    (currentBottom, sibling) => Math.max(currentBottom, sibling.position.y),
+    node.position.y,
+  )
+  const basePosition = {
+    x: node.position.x,
+    y: stackBottom + CHILD_LANE_GAP,
+  }
+
+  return findOpenPosition(
+    map,
+    basePosition,
+    { x: 0, y: 1 },
+    { x: 1, y: 0 },
+  )
 }
 
 function collectDescendantIds(map: MindMapRecord, nodeId: string): Set<string> {
@@ -294,9 +337,7 @@ export function addSiblingNode(map: MindMapRecord, nodeId: string) {
     return addChildNode(map, map.rootNodeId)
   }
 
-  const parent = findNode(map, node.parentId)
-
-  if (!parent) {
+  if (!findNode(map, node.parentId)) {
     return addChildNode(map, map.rootNodeId)
   }
 
@@ -309,7 +350,7 @@ export function addSiblingNode(map: MindMapRecord, nodeId: string) {
         id: siblingId,
         parentId: node.parentId,
         text: '',
-        position: getNextChildPosition(map, parent),
+        position: getNextSiblingPosition(map, node),
       },
     ],
   })

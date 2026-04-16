@@ -2,7 +2,6 @@ import { useEffect, useRef, type CSSProperties } from 'react'
 import { Handle, NodeResizeControl, Position, type NodeProps } from '@xyflow/react'
 import { Plus } from 'lucide-react'
 
-import { Button } from '../../../shared/ui/button'
 import { Card } from '../../../shared/ui/card'
 import { Input } from '../../../shared/ui/input'
 import { cn } from '../../../shared/lib/utils'
@@ -52,7 +51,7 @@ function getChildButtonClass(branchSide: MindFlowNode['data']['branchSide']) {
 }
 
 const quickAddButtonClass =
-  'nodrag nopan absolute z-[4] size-[22px] rounded-full px-0 shadow-[0_10px_20px_rgba(43,131,255,0.24)] !transition-colors hover:!translate-y-0 hover:brightness-90 [&_svg]:!size-[11px]'
+  'nodrag nopan absolute z-[4] inline-flex size-[22px] items-center justify-center rounded-full bg-primary px-0 text-primary-foreground shadow-[0_10px_20px_rgba(43,131,255,0.24)] transition-colors duration-200 ease-out hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background [&_svg]:size-[11px] [&_svg]:shrink-0'
 
 export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
   const longPressRef = useRef<number | null>(null)
@@ -140,23 +139,33 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
     })
   }
 
+  function startNextNodeEdit(direction: 'child' | 'sibling') {
+    if (direction === 'child' || !data.canAddSibling) {
+      data.onQuickAddChild(data.id)
+      return
+    }
+
+    data.onQuickAddSibling(data.id)
+  }
+
   const showPlaceholder = !data.label.trim()
   const hasCustomSize = !!data.size
   const widthClass = hasCustomSize
     ? 'h-full w-full'
     : getWidthClass(data.deviceClass, showPlaceholder)
+  const showNodeActions = selected
+  const showDesktopHint = showNodeActions && data.deviceClass === 'desktop'
+  const showResizeHandle = selected
+  const selectedOutlineColor = withAlpha(data.color, 0.7)
+  const idleOutlineColor = withAlpha(data.color, data.isRoot ? 0.18 : 0.1)
   const surfaceStyle: CSSProperties = {
-    borderColor: selected
-      ? withAlpha(data.color, 0.7)
-      : withAlpha(data.color, data.isRoot ? 0.18 : 0.1),
+    borderColor: selected ? selectedOutlineColor : idleOutlineColor,
     borderWidth: selected ? 3 : 1.5,
+    borderBottomRightRadius: selected ? 0 : undefined,
     boxShadow: selected
       ? `0 20px 44px rgba(17, 24, 39, 0.1), 0 0 0 6px ${withAlpha(data.color, 0.2)}`
       : `0 18px 36px rgba(17, 24, 39, 0.08)`,
   }
-  const showNodeActions = selected
-  const showDesktopHint = showNodeActions && data.deviceClass === 'desktop'
-  const showResizeHandle = selected
 
   return (
     <div
@@ -190,7 +199,7 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
     >
       {showResizeHandle ? (
         <NodeResizeControl
-          className="nodrag nopan !size-0 !border-0 !bg-transparent"
+          className="nodrag nopan !z-[5] !size-0 !border-0 !bg-transparent"
           maxHeight={240}
           maxWidth={440}
           minHeight={56}
@@ -207,8 +216,11 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
           position="bottom-right"
         >
           <span
-            className="block size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[2.5px] bg-white shadow-[0_4px_10px_rgba(17,24,39,0.12)]"
-            style={{ borderColor: data.color }}
+            className="block size-[13px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.75px] bg-white"
+            style={{
+              borderColor: selectedOutlineColor,
+              boxShadow: `0 0 0 2.8px ${selectedOutlineColor}, 0 8px 18px ${withAlpha(data.color, 0.18)}`,
+            }}
           />
         </NodeResizeControl>
       ) : null}
@@ -246,8 +258,27 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
               event.stopPropagation()
             }}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === 'Escape') {
+              if (event.nativeEvent.isComposing) {
+                return
+              }
+
+              if (event.key === 'Tab') {
                 event.preventDefault()
+                event.stopPropagation()
+                startNextNodeEdit('child')
+                return
+              }
+
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                event.stopPropagation()
+                startNextNodeEdit('sibling')
+                return
+              }
+
+              if (event.key === 'Escape') {
+                event.preventDefault()
+                event.stopPropagation()
                 data.onStopEditing()
               }
             }}
@@ -305,7 +336,7 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
 
       {showNodeActions ? (
         <>
-          <Button
+          <button
             aria-label="자식 노드 추가"
             className={cn(
               quickAddButtonClass,
@@ -315,10 +346,10 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
             type="button"
           >
             <Plus />
-          </Button>
+          </button>
 
           {data.canAddSibling ? (
-            <Button
+            <button
               aria-label="형제 노드 추가"
               className={cn(
                 quickAddButtonClass,
@@ -328,7 +359,7 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
               type="button"
             >
               <Plus />
-            </Button>
+            </button>
           ) : null}
 
           {showDesktopHint ? (
