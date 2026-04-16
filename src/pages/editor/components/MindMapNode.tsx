@@ -51,6 +51,9 @@ function getChildButtonClass(branchSide: MindFlowNode['data']['branchSide']) {
     : 'left-[calc(100%+0.55rem)] top-1/2 -translate-y-1/2'
 }
 
+const quickAddButtonClass =
+  'nodrag nopan absolute z-[4] size-[22px] rounded-full px-0 shadow-[0_10px_20px_rgba(43,131,255,0.24)] !transition-colors hover:!translate-y-0 hover:brightness-90 [&_svg]:!size-[11px]'
+
 export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
   const longPressRef = useRef<number | null>(null)
   const longPressTriggeredRef = useRef(false)
@@ -305,23 +308,26 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
           <Button
             aria-label="자식 노드 추가"
             className={cn(
-              'nodrag nopan absolute z-[4] size-8 rounded-full px-0 shadow-[0_10px_20px_rgba(43,131,255,0.24)]',
+              quickAddButtonClass,
               getChildButtonClass(data.branchSide),
             )}
             onClick={() => data.onQuickAddChild(data.id)}
             type="button"
           >
-            <Plus className="size-4" />
+            <Plus />
           </Button>
 
           {data.canAddSibling ? (
             <Button
               aria-label="형제 노드 추가"
-              className="nodrag nopan absolute left-1/2 top-[calc(100%+0.65rem)] z-[4] size-8 -translate-x-1/2 rounded-full px-0 shadow-[0_10px_20px_rgba(43,131,255,0.24)]"
+              className={cn(
+                quickAddButtonClass,
+                'left-1/2 top-[calc(100%+0.65rem)] -translate-x-1/2',
+              )}
               onClick={() => data.onQuickAddSibling(data.id)}
               type="button"
             >
-              <Plus className="size-4" />
+              <Plus />
             </Button>
           ) : null}
 
