@@ -166,6 +166,11 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
         selected ? 'z-[3]' : 'z-[2]',
       )}
       onContextMenu={(event) => {
+        // 편집 중엔 context menu 무시 — OPEN_SHEET가 editingNodeId를 비워
+        // 입력이 뚝 끊기는 증상을 유발한다
+        if (data.isEditing) {
+          return
+        }
         event.preventDefault()
         data.onSelect(data.id)
         data.onOpenMore(data.id)
@@ -176,6 +181,13 @@ export function MindMapNode({ data, selected }: NodeProps<MindFlowNode>) {
         clearLongPress()
 
         if (!data.touchPrimary) {
+          return
+        }
+
+        // 편집 중엔 롱프레스 타이머 자체를 걸지 않는다 —
+        // 편집 중 input을 탭해 커서를 옮기려 할 때 outer div로 bubble된
+        // touchstart가 420ms 뒤 OPEN_SHEET를 호출해 입력이 뚝 끊긴다
+        if (data.isEditing) {
           return
         }
 
