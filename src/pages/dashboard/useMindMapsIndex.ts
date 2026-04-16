@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
 
 import { createDefaultMindMap } from '../../shared/lib/createDefaultMindMap'
-import { deleteMindMap, getAppMeta, listMindMaps, saveAppMeta, saveMindMap } from '../../shared/lib/db'
+import {
+  deleteMindMap,
+  getAppMeta,
+  listMindMaps,
+  saveAppMeta,
+  saveMindMap,
+  toggleMindMapFavorite,
+} from '../../shared/lib/db'
 import type { MindMapRecord } from '../../shared/types/mindmap'
 
 function buildDefaultTitle(maps: MindMapRecord[]) {
@@ -43,6 +50,11 @@ export function useMindMapsIndex() {
     return map
   }
 
+  async function toggleFavorite(id: string) {
+    await toggleMindMapFavorite(id)
+    await refresh()
+  }
+
   async function removeMap(id: string) {
     await deleteMindMap(id)
 
@@ -65,5 +77,6 @@ export function useMindMapsIndex() {
     refresh,
     createMap,
     removeMap,
+    toggleFavorite,
   }
 }

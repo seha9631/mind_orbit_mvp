@@ -333,10 +333,10 @@ export function moveNode(map: MindMapRecord, nodeId: string, position: XYPositio
 }
 
 export function updateViewport(map: MindMapRecord, viewport: MindMapRecord['viewport']) {
-  return stampMap({
+  return {
     ...map,
     viewport,
-  })
+  }
 }
 
 export function removeNode(map: MindMapRecord, nodeId: string) {
