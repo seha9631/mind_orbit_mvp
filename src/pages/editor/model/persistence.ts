@@ -7,14 +7,16 @@ import { mapRepository } from '../../../services/db/repositories/mapRepository';
 // ─── 타입 변환 ────────────────────────────────────────────────────────────────
 
 export function toNodeRecord(node: Node, mapId: string): NodeRecord {
+  const data = node.data as { label?: string; collapsed?: boolean };
   return {
     id: node.id,
     mapId,
     type: node.type ?? 'mindmap',
-    label: String(node.data?.label ?? ''),
+    label: String(data?.label ?? ''),
     x: node.position.x,
     y: node.position.y,
     parentId: node.parentId,
+    collapsed: data?.collapsed,
   };
 }
 
@@ -22,7 +24,7 @@ export function fromNodeRecord(record: NodeRecord): Node {
   return {
     id: record.id,
     type: record.type,
-    data: { label: record.label },
+    data: { label: record.label, collapsed: record.collapsed },
     position: { x: record.x, y: record.y },
     ...(record.parentId ? { parentId: record.parentId } : {}),
   };

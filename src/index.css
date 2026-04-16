@@ -90,30 +90,12 @@ body,
   font-weight: 700;
 }
 
-/* 삭제 버튼 */
-.deleteBtn {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: none;
-  background: #ff5f5f;
-  color: white;
-  font-size: 12px;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  pointer-events: all;
-  z-index: 10;
-}
-
-.deleteBtn:hover {
-  background: #e53e3e;
+/* 노드 접힘 뱃지 */
+.collapsedBadge {
+  font-size: 10px;
+  color: #aaa;
+  margin-left: 2px;
+  pointer-events: none;
 }
 
 /* P0: 모바일 FAB 버튼 */
@@ -143,19 +125,143 @@ body,
   transform: scale(0.95);
 }
 
-/* 에디터 Back 버튼 */
+/* 에디터 헤더 (뒤로가기 + 제목) */
+.editorHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .backBtn {
   background: none;
   border: none;
-  color: #888;
-  font-size: 12px;
-  font-weight: 700;
+  color: #aaa;
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   padding: 0;
+  text-align: left;
 }
 
 .backBtn:hover {
-  color: #333;
+  color: #555;
+}
+
+.editorTitleWrap {
+  display: flex;
+  align-items: center;
+}
+
+.editorTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #222;
+  cursor: default;
+  user-select: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.editorTitle:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.editorTitleInput {
+  font-size: 15px;
+  font-weight: 700;
+  color: #222;
+  border: 1.5px solid #888;
+  border-radius: 4px;
+  padding: 2px 6px;
+  outline: none;
+  min-width: 100px;
+  background: white;
+}
+
+/* ─── 노드 액션 버튼 ─────────────────────────────────────────────────────── */
+
+.react-flow__node-mindmap {
+  position: relative;
+}
+
+.nodeActions {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  pointer-events: all;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+.nodeAction {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #444;
+  transition: background 0.12s, box-shadow 0.12s;
+  padding: 0;
+}
+
+.nodeAction:hover {
+  background: #f5f5f5;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+}
+
+.nodeAction:active {
+  background: #ebebeb;
+}
+
+/* 삭제 모드일 때 노드 강조 */
+.inputWrapper--deleteMode {
+  outline: 2px dashed #ff5f5f;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ─── 휴지통 삭제 영역 ────────────────────────────────────────────────────── */
+
+.trashZone {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: rgba(255, 95, 95, 0.12);
+  border: 2px dashed #ff5f5f;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  z-index: 200;
+  color: #ff5f5f;
+  transition: transform 0.15s, background 0.15s;
+  pointer-events: none;
+}
+
+.trashZone--hover {
+  background: rgba(255, 95, 95, 0.3);
+  transform: translateX(-50%) scale(1.15);
+}
+
+.trashLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: #ff5f5f;
+  white-space: nowrap;
 }
 
 /* ─── 대시보드 ─────────────────────────────────────────────────────────────── */

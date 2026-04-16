@@ -19,6 +19,7 @@ export interface NodeRecord {
   x: number;
   y: number;
   parentId?: string;
+  collapsed?: boolean;
 }
 
 export interface EdgeRecord {
