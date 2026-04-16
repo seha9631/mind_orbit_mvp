@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import type { DeviceClass } from '../types/mindmap'
+import type { DeviceClass } from '../shared/types/mindmap'
 
 type Orientation = 'portrait' | 'landscape'
 

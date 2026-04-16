@@ -1,16 +1,16 @@
 import { GitBranchPlus, PencilLine, Plus, Trash2 } from 'lucide-react'
 
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { Card, CardContent } from '../../components/ui/card'
+import { Badge } from '../../../shared/ui/badge'
+import { Button } from '../../../shared/ui/button'
+import { Card, CardContent } from '../../../shared/ui/card'
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from '../../components/ui/sheet'
-import type { ActiveSheet, DeviceClass, MindMapRecord } from '../../types/mindmap'
+} from '../../../shared/ui/sheet'
+import type { ActiveSheet, DeviceClass, MindMapRecord } from '../../../shared/types/mindmap'
 
 interface EditorBottomSheetProps {
   activeSheet: ActiveSheet

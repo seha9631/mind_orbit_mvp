@@ -6,10 +6,10 @@ import {
   type XYPosition,
 } from '@xyflow/react'
 
-import { buildBranchColorMap, buildFlowEdges } from '../../lib/mapOperations'
-import type { DeviceClass, MindMapRecord, ViewportState } from '../../types/mindmap'
+import { buildBranchColorMap, buildFlowEdges } from '../../../shared/lib/mapOperations'
+import type { DeviceClass, MindMapRecord, ViewportState } from '../../../shared/types/mindmap'
 import { MindMapNode } from './MindMapNode'
-import type { MindFlowNode } from './mindNodeTypes'
+import type { MindFlowNode } from '../mindNodeTypes'
 
 interface MindMapCanvasProps {
   deviceClass: DeviceClass

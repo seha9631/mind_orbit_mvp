@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { ArrowUpRight, HardDriveDownload, Plus, Sparkles, Trash2 } from 'lucide-react'
 
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
+import { Badge } from '../../shared/ui/badge'
+import { Button } from '../../shared/ui/button'
 import {
   Card,
   CardContent,
@@ -10,10 +10,10 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '../../components/ui/card'
-import { cn } from '../../lib/utils'
-import { useMindMapsIndex } from '../../hooks/useMindMapsIndex'
-import type { DeviceClass } from '../../types/mindmap'
+} from '../../shared/ui/card'
+import { cn } from '../../shared/lib/utils'
+import { useMindMapsIndex } from './useMindMapsIndex'
+import type { DeviceClass } from '../../shared/types/mindmap'
 import { CreateMapSheet } from './CreateMapSheet'
 
 interface DashboardPageProps {

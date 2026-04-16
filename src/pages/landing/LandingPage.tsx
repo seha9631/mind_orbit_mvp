@@ -1,10 +1,10 @@
 import { ArrowRight, CloudOff, MoveUpRight, Smartphone } from 'lucide-react'
 
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { Card, CardContent } from '../../components/ui/card'
-import { cn } from '../../lib/utils'
-import type { DeviceClass } from '../../types/mindmap'
+import { Badge } from '../../shared/ui/badge'
+import { Button } from '../../shared/ui/button'
+import { Card, CardContent } from '../../shared/ui/card'
+import { cn } from '../../shared/lib/utils'
+import type { DeviceClass } from '../../shared/types/mindmap'
 
 interface LandingPageProps {
   deviceClass: DeviceClass

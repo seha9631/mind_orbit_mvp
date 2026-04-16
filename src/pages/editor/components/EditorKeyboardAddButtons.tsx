@@ -1,7 +1,7 @@
 import { GitBranchPlus, Plus } from 'lucide-react'
 
-import { Button } from '../../components/ui/button'
-import type { DeviceClass } from '../../types/mindmap'
+import { Button } from '../../../shared/ui/button'
+import type { DeviceClass } from '../../../shared/types/mindmap'
 
 interface EditorKeyboardAddButtonsProps {
   canAddSibling: boolean

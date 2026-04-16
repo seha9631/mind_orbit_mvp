@@ -1,9 +1,9 @@
 import { MoreHorizontal, Palette, ScanSearch } from 'lucide-react'
 
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { cn } from '../../lib/utils'
-import type { DeviceClass } from '../../types/mindmap'
+import { Badge } from '../../../shared/ui/badge'
+import { Button } from '../../../shared/ui/button'
+import { cn } from '../../../shared/lib/utils'
+import type { DeviceClass } from '../../../shared/types/mindmap'
 
 interface EditorTopBarProps {
   deviceClass: DeviceClass

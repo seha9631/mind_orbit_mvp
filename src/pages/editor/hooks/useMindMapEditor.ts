@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { XYPosition } from '@xyflow/react'
 
-import { getMindMap, saveAppMeta } from '../lib/db'
+import { getMindMap, saveAppMeta } from '../../../shared/lib/db'
 import {
   addChildNode,
   addSiblingNode,
@@ -10,8 +10,8 @@ import {
   updateNodeText,
   updateViewport,
   moveNode,
-} from '../lib/mapOperations'
-import type { ActiveSheet, DeviceClass, MindMapRecord, ViewportState } from '../types/mindmap'
+} from '../../../shared/lib/mapOperations'
+import type { ActiveSheet, DeviceClass, MindMapRecord, ViewportState } from '../../../shared/types/mindmap'
 
 interface UseMindMapEditorOptions {
   mapId: string
