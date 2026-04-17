@@ -74,9 +74,8 @@ export function EditorPage({
     onGoHome()
   }
 
-  // MindMapCanvas로 넘기는 inline 핸들러가 매 렌더마다 새 참조가 되면
-  // MindMapNode의 data prop이 매번 바뀌어 타이핑 중 모든 노드가 리렌더된다.
-  const { selectNode, openSheet, addChild } = editor
+  const { selectNode, openSheet, addChild, addSibling, updateNodeSize } = editor
+
   const handleOpenMoreFromNode = useCallback(
     (nodeId: string) => {
       selectNode(nodeId)
@@ -84,6 +83,7 @@ export function EditorPage({
     },
     [openSheet, selectNode],
   )
+
   const handleQuickAddChild = useCallback(
     (nodeId: string) => {
       addChild(nodeId)
@@ -91,9 +91,23 @@ export function EditorPage({
     [addChild],
   )
 
+  const handleQuickAddSibling = useCallback(
+    (nodeId: string) => {
+      addSibling(nodeId)
+    },
+    [addSibling],
+  )
+
+  const handleResizeNode = useCallback(
+    (nodeId: string, size: { width: number; height: number }) => {
+      updateNodeSize(nodeId, size)
+    },
+    [updateNodeSize],
+  )
+
   if (editor.loading) {
     return (
-      <div className="bg-editor-shell flex min-h-dvh min-h-svh items-center justify-center p-5">
+      <div className="bg-editor-shell app-screen safe-page-x safe-page-y flex items-center justify-center">
         <Card className="w-full max-w-md bg-white/76">
           <CardContent className="p-6 text-center text-sm text-muted-foreground">
             마인드맵을 열고 있어요...
@@ -105,7 +119,7 @@ export function EditorPage({
 
   if (editor.error || !editor.map) {
     return (
-      <div className="bg-editor-shell flex min-h-dvh min-h-svh items-center justify-center p-5">
+      <div className="bg-editor-shell app-screen safe-page-x safe-page-y flex items-center justify-center">
         <Card className="w-full max-w-md bg-white/78">
           <CardContent className="grid gap-4 p-6 text-center">
             <p className="text-sm leading-6 text-muted-foreground">
@@ -132,7 +146,7 @@ export function EditorPage({
 
   return (
     <main
-      className="bg-editor-shell relative min-h-dvh min-h-svh overflow-hidden"
+      className="bg-editor-shell app-screen relative overflow-hidden"
       style={editorStyle}
     >
       <Button
@@ -174,12 +188,13 @@ export function EditorPage({
         editingNodeId={editor.editingNodeId}
         fitViewToken={fitViewToken}
         isTouchPrimary={isTouchPrimary}
-        keyboardVisible={keyboardVisible}
         map={editor.map}
         onChangeLabel={editor.changeNodeText}
         onMoveNode={editor.updateNodePosition}
         onOpenMore={handleOpenMoreFromNode}
         onQuickAddChild={handleQuickAddChild}
+        onQuickAddSibling={handleQuickAddSibling}
+        onResizeNode={handleResizeNode}
         onSelectNode={editor.selectNode}
         onSetViewport={editor.setViewportState}
         onStartEditing={editor.startEditing}
@@ -187,14 +202,16 @@ export function EditorPage({
         selectedNodeId={editor.selectedNodeId}
       />
 
-      <EditorActionDock
-        canAddSibling={canAddSibling}
-        deviceClass={deviceClass}
-        onAddChild={() => editor.addChild()}
-        onAddSibling={() => editor.addSibling()}
-        onOpenMore={() => editor.openSheet('more')}
-        onOpenStyle={() => editor.openSheet('style')}
-      />
+      {deviceClass === 'desktop' || !keyboardVisible ? (
+        <EditorActionDock
+          canAddSibling={canAddSibling}
+          deviceClass={deviceClass}
+          onAddChild={() => editor.addChild()}
+          onAddSibling={() => editor.addSibling()}
+          onOpenMore={() => editor.openSheet('more')}
+          onOpenStyle={() => editor.openSheet('style')}
+        />
+      ) : null}
 
       <EditorKeyboardAddButtons
         canAddSibling={canAddSibling}

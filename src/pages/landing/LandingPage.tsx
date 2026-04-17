@@ -17,7 +17,7 @@ export function LandingPage({ deviceClass, onStart }: LandingPageProps) {
   return (
     <main
       className={cn(
-        'bg-orbit-shell relative min-h-dvh min-h-svh overflow-hidden px-5 py-6',
+        'bg-orbit-shell app-screen safe-page-x safe-page-y relative overflow-hidden',
         deviceClass === 'desktop'
           ? 'grid grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)] items-center gap-10 px-10 py-10'
           : 'grid content-center gap-8 sm:px-8 sm:py-8',

@@ -41,9 +41,23 @@ export function useEditorKeyboard(
       }
 
       if (editor.editingNodeId) {
+        if (isTypingTarget) {
+          return
+        }
+
+        if (event.key === 'Tab') {
+          event.preventDefault()
+          editor.addChild(editor.editingNodeId)
+          return
+        }
+
         if (event.key === 'Enter') {
           event.preventDefault()
-          editor.stopEditing()
+          if (editor.editingNodeId === editor.map?.rootNodeId) {
+            editor.addChild(editor.editingNodeId)
+          } else {
+            editor.addSibling(editor.editingNodeId)
+          }
         }
         return
       }

@@ -10,11 +10,13 @@ import {
   updateNodeText,
   updateViewport,
   moveNode,
+  resizeNode,
 } from '../../../shared/lib/mapOperations'
 import type {
   ActiveSheet,
   DeviceClass,
   MindMapRecord,
+  NodeSize,
   ViewportState,
 } from '../../../shared/types/mindmap'
 
@@ -47,6 +49,7 @@ type MindMapEditorAction =
   | { type: 'ADD_SIBLING'; payload: { nodeId: string } }
   | { type: 'DELETE_SELECTED'; payload: { nodeId: string } }
   | { type: 'UPDATE_NODE_POSITION'; payload: { nodeId: string; position: XYPosition } }
+  | { type: 'UPDATE_NODE_SIZE'; payload: { nodeId: string; size: NodeSize } }
   | { type: 'SET_VIEWPORT'; payload: ViewportState }
   | { type: 'OPEN_SHEET'; payload: ActiveSheet }
   | { type: 'CLOSE_SHEET' }
@@ -192,6 +195,17 @@ function mindMapEditorReducer(
       return {
         ...state,
         map: moveNode(state.map, action.payload.nodeId, action.payload.position),
+      }
+    }
+
+    case 'UPDATE_NODE_SIZE': {
+      if (!state.map) {
+        return state
+      }
+
+      return {
+        ...state,
+        map: resizeNode(state.map, action.payload.nodeId, action.payload.size),
       }
     }
 
@@ -354,7 +368,18 @@ export function useMindMapEditor({
     })
   }, [])
 
+<<<<<<< HEAD
   const setViewportState = useCallback((viewport: ViewportState) => {
+=======
+  function updateNodeSize(nodeId: string, size: NodeSize) {
+    dispatch({
+      type: 'UPDATE_NODE_SIZE',
+      payload: { nodeId, size },
+    })
+  }
+
+  function setViewportState(viewport: ViewportState) {
+>>>>>>> marco_merge_mobile_test
     dispatch({
       type: 'SET_VIEWPORT',
       payload: viewport,
@@ -397,6 +422,7 @@ export function useMindMapEditor({
     addSibling,
     deleteSelected,
     updateNodePosition,
+    updateNodeSize,
     setViewportState,
     openSheet,
     closeSheet,
