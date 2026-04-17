@@ -1,426 +1,458 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react'
-import type { XYPosition } from '@xyflow/react'
+import { memo, useEffect, useRef, type CSSProperties } from 'react'
+import { Handle, NodeResizeControl, Position, type NodeProps } from '@xyflow/react'
+import { Plus } from 'lucide-react'
 
-import { getMindMap, saveAppMeta } from '../../../shared/lib/db'
-import {
-  addChildNode,
-  addSiblingNode,
-  removeNode,
-  sanitizeMindMap,
-  updateNodeText,
-  updateViewport,
-  moveNode,
-  resizeNode,
-} from '../../../shared/lib/mapOperations'
-import type {
-  ActiveSheet,
-  DeviceClass,
-  MindMapRecord,
-  NodeSize,
-  ViewportState,
-} from '../../../shared/types/mindmap'
+import { Card } from '../../../shared/ui/card'
+import { Input } from '../../../shared/ui/input'
+import { cn } from '../../../shared/lib/utils'
+import type { MindFlowNode } from '../mindNodeTypes'
 
-interface UseMindMapEditorOptions {
-  mapId: string
-  deviceClass: DeviceClass
-  keyboardVisible: boolean
+function withAlpha(hex: string, alpha: number) {
+  const normalized = hex.replace('#', '')
+  const expanded =
+    normalized.length === 3
+      ? normalized
+          .split('')
+          .map((character) => `${character}${character}`)
+          .join('')
+      : normalized
+
+  const red = Number.parseInt(expanded.slice(0, 2), 16)
+  const green = Number.parseInt(expanded.slice(2, 4), 16)
+  const blue = Number.parseInt(expanded.slice(4, 6), 16)
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
 }
 
-interface MindMapEditorState {
-  map: MindMapRecord | null
-  loading: boolean
-  error: string | null
-  selectedNodeId: string | null
-  editingNodeId: string | null
-  activeSheet: ActiveSheet
-  lastPersistedUpdatedAt: string | null
-}
-
-type MindMapEditorAction =
-  | { type: 'LOAD_START' }
-  | { type: 'LOAD_SUCCESS'; payload: MindMapRecord }
-  | { type: 'LOAD_NOT_FOUND' }
-  | { type: 'LOAD_ERROR'; payload: string }
-  | { type: 'SELECT_NODE'; payload: string | null }
-  | { type: 'START_EDITING'; payload: string }
-  | { type: 'STOP_EDITING' }
-  | { type: 'CHANGE_NODE_TEXT'; payload: { nodeId: string; text: string } }
-  | { type: 'ADD_CHILD'; payload: { nodeId: string } }
-  | { type: 'ADD_SIBLING'; payload: { nodeId: string } }
-  | { type: 'DELETE_SELECTED'; payload: { nodeId: string } }
-  | { type: 'UPDATE_NODE_POSITION'; payload: { nodeId: string; position: XYPosition } }
-  | { type: 'UPDATE_NODE_SIZE'; payload: { nodeId: string; size: NodeSize } }
-  | { type: 'SET_VIEWPORT'; payload: ViewportState }
-  | { type: 'OPEN_SHEET'; payload: ActiveSheet }
-  | { type: 'CLOSE_SHEET' }
-  | { type: 'CLOSE_SHEET_FOR_KEYBOARD' }
-  | { type: 'MARK_PERSISTED'; payload: string }
-
-const initialState: MindMapEditorState = {
-  map: null,
-  loading: true,
-  error: null,
-  selectedNodeId: null,
-  editingNodeId: null,
-  activeSheet: 'none',
-  lastPersistedUpdatedAt: null,
-}
-
-function mindMapEditorReducer(
-  state: MindMapEditorState,
-  action: MindMapEditorAction,
-): MindMapEditorState {
-  switch (action.type) {
-    case 'LOAD_START':
-      return {
-        ...state,
-        loading: true,
-        error: null,
-      }
-
-    case 'LOAD_SUCCESS': {
-      const safeMap = action.payload
-
-      return {
-        ...state,
-        map: safeMap,
-        loading: false,
-        error: null,
-        selectedNodeId: safeMap.rootNodeId,
-        editingNodeId: null,
-        activeSheet: 'none',
-        lastPersistedUpdatedAt: safeMap.updatedAt,
-      }
-    }
-
-    case 'LOAD_NOT_FOUND':
-      return {
-        ...state,
-        map: null,
-        loading: false,
-        error: '마인드맵을 찾을 수 없어요.',
-      }
-
-    case 'LOAD_ERROR':
-      return {
-        ...state,
-        loading: false,
-        error: action.payload,
-      }
-
-    case 'SELECT_NODE':
-      return {
-        ...state,
-        selectedNodeId: action.payload,
-      }
-
-    case 'START_EDITING':
-      return {
-        ...state,
-        selectedNodeId: action.payload,
-        editingNodeId: action.payload,
-        activeSheet: 'none',
-      }
-
-    case 'STOP_EDITING':
-      return {
-        ...state,
-        editingNodeId: null,
-      }
-
-    case 'CHANGE_NODE_TEXT': {
-      if (!state.map) {
-        return state
-      }
-
-      return {
-        ...state,
-        map: updateNodeText(state.map, action.payload.nodeId, action.payload.text),
-      }
-    }
-
-    case 'ADD_CHILD': {
-      if (!state.map) {
-        return state
-      }
-
-      const result = addChildNode(state.map, action.payload.nodeId)
-
-      return {
-        ...state,
-        map: result.map,
-        selectedNodeId: result.createdNodeId,
-        editingNodeId: result.createdNodeId,
-        activeSheet: 'none',
-      }
-    }
-
-    case 'ADD_SIBLING': {
-      if (!state.map) {
-        return state
-      }
-
-      const result = addSiblingNode(state.map, action.payload.nodeId)
-
-      return {
-        ...state,
-        map: result.map,
-        selectedNodeId: result.createdNodeId,
-        editingNodeId: result.createdNodeId,
-        activeSheet: 'none',
-      }
-    }
-
-    case 'DELETE_SELECTED': {
-      if (!state.map) {
-        return state
-      }
-
-      const result = removeNode(state.map, action.payload.nodeId)
-
-      return {
-        ...state,
-        map: result.map,
-        selectedNodeId: result.nextSelectedNodeId,
-        editingNodeId: null,
-        activeSheet: 'none',
-      }
-    }
-
-    case 'UPDATE_NODE_POSITION': {
-      if (!state.map) {
-        return state
-      }
-
-      return {
-        ...state,
-        map: moveNode(state.map, action.payload.nodeId, action.payload.position),
-      }
-    }
-
-    case 'UPDATE_NODE_SIZE': {
-      if (!state.map) {
-        return state
-      }
-
-      return {
-        ...state,
-        map: resizeNode(state.map, action.payload.nodeId, action.payload.size),
-      }
-    }
-
-    case 'SET_VIEWPORT': {
-      if (!state.map) {
-        return state
-      }
-
-      return {
-        ...state,
-        map: updateViewport(state.map, action.payload),
-      }
-    }
-
-    case 'OPEN_SHEET':
-      return {
-        ...state,
-        activeSheet: action.payload,
-        editingNodeId: null,
-      }
-
-    case 'CLOSE_SHEET':
-      return {
-        ...state,
-        activeSheet: 'none',
-      }
-
-    case 'CLOSE_SHEET_FOR_KEYBOARD':
-      return {
-        ...state,
-        activeSheet: 'none',
-      }
-
-    case 'MARK_PERSISTED':
-      return {
-        ...state,
-        lastPersistedUpdatedAt: action.payload,
-      }
-
-    default:
-      return state
+function getWidthClass(
+  deviceClass: MindFlowNode['data']['deviceClass'],
+  isCompact: boolean,
+) {
+  switch (deviceClass) {
+    case 'desktop':
+      return isCompact
+        ? 'min-h-10 w-[clamp(8.75rem,12vw,11rem)]'
+        : 'min-h-10 w-[clamp(13.75rem,18vw,17.5rem)]'
+    case 'tablet':
+      return isCompact
+        ? 'min-h-11 w-[clamp(8.5rem,28vw,10.5rem)]'
+        : 'min-h-11 w-[clamp(10rem,34vw,13.75rem)]'
+    case 'mobile':
+      return isCompact
+        ? 'min-h-11 w-[clamp(8.5rem,28vw,10.5rem)]'
+        : 'min-h-11 w-[clamp(10rem,34vw,13.75rem)]'
   }
 }
 
-export function useMindMapEditor({
-  mapId,
-  deviceClass,
-  keyboardVisible,
-}: UseMindMapEditorOptions) {
-  const [state, dispatch] = useReducer(mindMapEditorReducer, initialState)
+function getChildButtonClass(branchSide: MindFlowNode['data']['branchSide']) {
+  return branchSide === 'left'
+    ? 'right-[calc(100%+0.55rem)] top-1/2 -translate-y-1/2'
+    : 'left-[calc(100%+0.55rem)] top-1/2 -translate-y-1/2'
+}
+
+const quickAddButtonClass =
+  'nodrag nopan absolute z-[4] inline-flex size-[22px] items-center justify-center rounded-full bg-primary px-0 text-primary-foreground shadow-[0_10px_20px_rgba(43,131,255,0.24)] transition-colors duration-200 ease-out hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background [&_svg]:size-[11px] [&_svg]:shrink-0'
+
+function MindMapNodeComponent({ data, selected }: NodeProps<MindFlowNode>) {
+  const longPressRef = useRef<number | null>(null)
+  const longPressTriggeredRef = useRef(false)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null)
+  const composeFlushRef = useRef<number | null>(null)
+  const startEditingFrameRef = useRef<number | null>(null)
 
   useEffect(() => {
-    let cancelled = false
+    return () => {
+      if (composeFlushRef.current !== null) {
+        window.clearTimeout(composeFlushRef.current)
+      }
 
-    async function loadMap() {
-      dispatch({ type: 'LOAD_START' })
-
-      try {
-        const nextMap = await getMindMap(mapId)
-
-        if (cancelled) {
-          return
-        }
-
-        if (!nextMap) {
-          void saveAppMeta({
-            lastOpenedMapId: undefined,
-            lastScreen: 'dashboard',
-          })
-
-          dispatch({ type: 'LOAD_NOT_FOUND' })
-          return
-        }
-
-        const safeMap = sanitizeMindMap(nextMap)
-        dispatch({ type: 'LOAD_SUCCESS', payload: safeMap })
-      } catch {
-        if (!cancelled) {
-          dispatch({
-            type: 'LOAD_ERROR',
-            payload: '마인드맵을 불러오지 못했어요.',
-          })
-        }
+      if (startEditingFrameRef.current !== null) {
+        window.cancelAnimationFrame(startEditingFrameRef.current)
       }
     }
+  }, [])
 
-    void loadMap()
-
-    return () => {
-      cancelled = true
+  function clearLongPress() {
+    if (longPressRef.current !== null) {
+      window.clearTimeout(longPressRef.current)
+      longPressRef.current = null
     }
-  }, [mapId])
+  }
 
-  useEffect(() => {
-    if (deviceClass === 'desktop' || !keyboardVisible) {
+  function clearPendingStartEditing() {
+    if (startEditingFrameRef.current !== null) {
+      window.cancelAnimationFrame(startEditingFrameRef.current)
+      startEditingFrameRef.current = null
+    }
+  }
+
+  function handleGestureStart(clientX: number, clientY: number) {
+    pointerStartRef.current = {
+      x: clientX,
+      y: clientY,
+    }
+    longPressTriggeredRef.current = false
+  }
+
+  function handleGestureEnd(clientX: number, clientY: number) {
+    const pointerStart = pointerStartRef.current
+    pointerStartRef.current = null
+
+    if (!pointerStart || longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false
       return
     }
 
-    dispatch({ type: 'CLOSE_SHEET_FOR_KEYBOARD' })
-  }, [deviceClass, keyboardVisible])
+    const deltaX = clientX - pointerStart.x
+    const deltaY = clientY - pointerStart.y
+    const movedDistance = Math.hypot(deltaX, deltaY)
 
-  const isDirty = !!state.map && state.lastPersistedUpdatedAt !== state.map.updatedAt
-
-  const stateRef = useRef(state)
-  useEffect(() => {
-    stateRef.current = state
-  }, [state])
-
-  const selectNode = useCallback((nodeId: string | null) => {
-    dispatch({ type: 'SELECT_NODE', payload: nodeId })
-  }, [])
-
-  const startEditing = useCallback((nodeId: string) => {
-    dispatch({ type: 'START_EDITING', payload: nodeId })
-  }, [])
-
-  const stopEditing = useCallback(() => {
-    dispatch({ type: 'STOP_EDITING' })
-  }, [])
-
-  const changeNodeText = useCallback((nodeId: string, text: string) => {
-    dispatch({
-      type: 'CHANGE_NODE_TEXT',
-      payload: { nodeId, text },
-    })
-  }, [])
-
-  const addChild = useCallback((nodeId?: string) => {
-    const current = stateRef.current
-    const targetId = nodeId ?? current.selectedNodeId ?? current.map?.rootNodeId ?? ''
-    dispatch({
-      type: 'ADD_CHILD',
-      payload: { nodeId: targetId },
-    })
-  }, [])
-
-  const addSibling = useCallback((nodeId?: string) => {
-    const current = stateRef.current
-    const targetId = nodeId ?? current.selectedNodeId ?? current.map?.rootNodeId ?? ''
-    dispatch({
-      type: 'ADD_SIBLING',
-      payload: { nodeId: targetId },
-    })
-  }, [])
-
-  const deleteSelected = useCallback((nodeId?: string) => {
-    const current = stateRef.current
-    const targetId = nodeId ?? current.selectedNodeId ?? ''
-    dispatch({
-      type: 'DELETE_SELECTED',
-      payload: { nodeId: targetId },
-    })
-  }, [])
-
-  const updateNodePosition = useCallback((nodeId: string, position: XYPosition) => {
-    dispatch({
-      type: 'UPDATE_NODE_POSITION',
-      payload: { nodeId, position },
-    })
-  }, [])
-
-  const updateNodeSize = useCallback((nodeId: string, size: NodeSize) => {
-    dispatch({
-      type: 'UPDATE_NODE_SIZE',
-      payload: { nodeId, size },
-    })
-  }, [])
-
-  const setViewportState = useCallback((viewport: ViewportState) => {
-    dispatch({
-      type: 'SET_VIEWPORT',
-      payload: viewport,
-    })
-  }, [])
-
-  const openSheet = useCallback((sheet: ActiveSheet) => {
-    dispatch({
-      type: 'OPEN_SHEET',
-      payload: sheet,
-    })
-  }, [])
-
-  const closeSheet = useCallback(() => {
-    dispatch({ type: 'CLOSE_SHEET' })
-  }, [])
-
-  const markPersisted = useCallback((updatedAt: string) => {
-    dispatch({
-      type: 'MARK_PERSISTED',
-      payload: updatedAt,
-    })
-  }, [])
-
-  return {
-    map: state.map,
-    loading: state.loading,
-    error: state.error,
-    isDirty,
-    selectedNodeId: state.selectedNodeId,
-    editingNodeId: state.editingNodeId,
-    activeSheet: state.activeSheet,
-    keyboardVisible,
-    deviceClass,
-    selectNode,
-    startEditing,
-    stopEditing,
-    changeNodeText,
-    addChild,
-    addSibling,
-    deleteSelected,
-    updateNodePosition,
-    updateNodeSize,
-    setViewportState,
-    openSheet,
-    closeSheet,
-    markPersisted,
+    if (movedDistance < 8) {
+      startEditingFromGesture()
+    }
   }
+
+  useEffect(() => {
+    if (!data.isEditing) {
+      return
+    }
+
+    const input = inputRef.current
+
+    if (!input) {
+      return
+    }
+
+    input.value = data.label
+
+    const focusInput = () => {
+      input.focus({ preventScroll: true })
+      const cursorPosition = input.value.length
+      input.setSelectionRange(cursorPosition, cursorPosition)
+    }
+
+    focusInput()
+
+    const timerId = window.setTimeout(() => {
+      if (document.activeElement !== input) {
+        focusInput()
+      }
+    }, 40)
+
+    return () => {
+      window.clearTimeout(timerId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.isEditing])
+
+  function startEditingFromGesture() {
+    clearPendingStartEditing()
+
+    startEditingFrameRef.current = window.requestAnimationFrame(() => {
+      startEditingFrameRef.current = null
+      data.onStartEditing(data.id)
+    })
+  }
+
+  function startNextNodeEdit(direction: 'child' | 'sibling') {
+    if (direction === 'child' || !data.canAddSibling) {
+      data.onQuickAddChild(data.id)
+      return
+    }
+
+    data.onQuickAddSibling(data.id)
+  }
+
+  const showPlaceholder = !data.label.trim()
+  const hasCustomSize = !!data.size
+  const widthClass = hasCustomSize
+    ? 'h-full w-full'
+    : getWidthClass(data.deviceClass, data.isEditing ? false : showPlaceholder)
+
+  const showNodeActions = selected
+  const showDesktopHint = showNodeActions && data.deviceClass === 'desktop'
+  const showResizeHandle = selected
+  const selectedOutlineColor = withAlpha(data.color, 0.7)
+  const idleOutlineColor = withAlpha(data.color, data.isRoot ? 0.18 : 0.1)
+
+  const surfaceStyle: CSSProperties = {
+    borderColor: selected ? selectedOutlineColor : idleOutlineColor,
+    borderWidth: selected ? 3 : 1.5,
+    borderBottomRightRadius: selected ? 0 : undefined,
+    boxShadow: selected
+      ? `0 20px 44px rgba(17, 24, 39, 0.1), 0 0 0 6px ${withAlpha(data.color, 0.2)}`
+      : `0 18px 36px rgba(17, 24, 39, 0.08)`,
+  }
+
+  return (
+    <div
+      className={cn('relative min-w-28', selected ? 'z-[3]' : 'z-[2]')}
+      onContextMenu={(event) => {
+        if (data.isEditing) {
+          return
+        }
+
+        event.preventDefault()
+        data.onSelect(data.id)
+        data.onOpenMore(data.id)
+      }}
+      onTouchEnd={clearLongPress}
+      onTouchMove={clearLongPress}
+      onTouchStart={() => {
+        clearLongPress()
+
+        if (!data.touchPrimary) {
+          return
+        }
+
+        if (data.isEditing) {
+          return
+        }
+
+        longPressRef.current = window.setTimeout(() => {
+          longPressTriggeredRef.current = true
+          data.onSelect(data.id)
+          data.onOpenMore(data.id)
+        }, 420)
+      }}
+      style={{
+        ['--node-color' as string]: data.color,
+      }}
+    >
+      {showResizeHandle ? (
+        <NodeResizeControl
+          className="nodrag nopan !z-[5] !size-0 !border-0 !bg-transparent"
+          maxHeight={240}
+          maxWidth={440}
+          minHeight={56}
+          minWidth={168}
+          onResizeEnd={(_event, params) => {
+            data.onResizeEnd(data.id, {
+              height: params.height,
+              width: params.width,
+            })
+          }}
+          onResizeStart={() => {
+            data.onSelect(data.id)
+          }}
+          position="bottom-right"
+        >
+          <span
+            className="block size-[13px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.75px] bg-white"
+            style={{
+              borderColor: selectedOutlineColor,
+              boxShadow: `0 0 0 2.8px ${selectedOutlineColor}, 0 8px 18px ${withAlpha(data.color, 0.18)}`,
+            }}
+          />
+        </NodeResizeControl>
+      ) : null}
+
+      <Handle
+        className="!size-2.5 !border-0 !bg-transparent"
+        id="left-target"
+        position={Position.Left}
+        style={{ opacity: data.isRoot ? 0 : 0.001 }}
+        type="target"
+      />
+      <Handle
+        className="!size-2.5 !border-0 !bg-transparent"
+        id="left-source"
+        position={Position.Left}
+        style={{ opacity: data.isRoot ? 0 : 0.001 }}
+        type="source"
+      />
+
+      <div className="relative">
+        {data.isEditing ? (
+          <Input
+            autoFocus
+            className={cn(
+              'nodrag nopan rounded-[20px] bg-white/95 px-4 py-3 shadow-[0_18px_36px_rgba(17,24,39,0.08)]',
+              data.touchPrimary ? 'text-base' : 'text-sm',
+              widthClass,
+              hasCustomSize ? 'h-full min-h-[3.5rem]' : '',
+              data.isRoot ? 'font-semibold' : '',
+            )}
+            data-editor-input="true"
+            inputMode="text"
+            onBlur={(event) => {
+              data.onChangeLabel(data.id, event.currentTarget.value)
+              data.onStopEditing()
+            }}
+            onChange={(event) => {
+              if (!event.nativeEvent.isComposing) {
+                data.onChangeLabel(data.id, event.target.value)
+              }
+            }}
+            onClick={(event) => {
+              event.stopPropagation()
+            }}
+            onCompositionEnd={(event) => {
+              const finalValue = event.currentTarget.value
+              const id = data.id
+              const onChange = data.onChangeLabel
+
+              if (composeFlushRef.current !== null) {
+                window.clearTimeout(composeFlushRef.current)
+              }
+
+              composeFlushRef.current = window.setTimeout(() => {
+                composeFlushRef.current = null
+                onChange(id, finalValue)
+              }, 0)
+            }}
+            onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing) {
+                return
+              }
+
+              if (event.key === 'Tab') {
+                event.preventDefault()
+                event.stopPropagation()
+
+                if (inputRef.current) {
+                  data.onChangeLabel(data.id, inputRef.current.value)
+                }
+
+                startNextNodeEdit('child')
+                return
+              }
+
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                event.stopPropagation()
+
+                if (inputRef.current) {
+                  data.onChangeLabel(data.id, inputRef.current.value)
+                }
+
+                startNextNodeEdit('sibling')
+                return
+              }
+
+              if (event.key === 'Escape') {
+                event.preventDefault()
+                event.stopPropagation()
+
+                if (inputRef.current) {
+                  data.onChangeLabel(data.id, inputRef.current.value)
+                }
+
+                data.onStopEditing()
+              }
+            }}
+            onPointerDown={(event) => {
+              event.stopPropagation()
+            }}
+            placeholder={data.placeholder}
+            ref={inputRef}
+            style={surfaceStyle}
+          />
+        ) : (
+          <Card
+            className={cn(
+              'cursor-grab rounded-[22px] bg-white/94 px-4 py-3 transition-all duration-150 active:cursor-grabbing',
+              widthClass,
+              hasCustomSize ? 'flex h-full min-h-[3.5rem] items-start' : '',
+              data.isRoot ? 'bg-white/86 font-semibold' : '',
+            )}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                startEditingFromGesture()
+              }
+            }}
+            onPointerCancel={() => {
+              pointerStartRef.current = null
+              longPressTriggeredRef.current = false
+            }}
+            onPointerDown={(event) => {
+              if (event.button !== 0) {
+                return
+              }
+
+              handleGestureStart(event.clientX, event.clientY)
+            }}
+            onPointerUp={(event) => {
+              handleGestureEnd(event.clientX, event.clientY)
+            }}
+            role="button"
+            style={surfaceStyle}
+            tabIndex={0}
+          >
+            <span
+              className={cn(
+                'block text-left text-sm leading-6 text-foreground',
+                showPlaceholder ? 'text-muted-foreground/70' : '',
+              )}
+            >
+              {showPlaceholder ? data.placeholder : data.label}
+            </span>
+          </Card>
+        )}
+      </div>
+
+      {showNodeActions ? (
+        <>
+          <button
+            aria-label="자식 노드 추가"
+            className={cn(quickAddButtonClass, getChildButtonClass(data.branchSide))}
+            onClick={() => data.onQuickAddChild(data.id)}
+            type="button"
+          >
+            <Plus />
+          </button>
+
+          {data.canAddSibling ? (
+            <button
+              aria-label="형제 노드 추가"
+              className={cn(
+                quickAddButtonClass,
+                'left-1/2 top-[calc(100%+0.65rem)] -translate-x-1/2',
+              )}
+              onClick={() => data.onQuickAddSibling(data.id)}
+              type="button"
+            >
+              <Plus />
+            </button>
+          ) : null}
+
+          {showDesktopHint ? (
+            <div className="nodrag nopan absolute left-[calc(100%+4.3rem)] top-1/2 z-[4] grid min-w-40 -translate-y-1/2 gap-2 rounded-[22px] border border-white/55 bg-white/88 p-3 shadow-[0_18px_36px_rgba(17,24,39,0.12)] backdrop-blur-xl">
+              <div className="flex items-center gap-2 text-xs text-foreground/80">
+                <span className="rounded-xl border border-slate-300 bg-white px-2 py-1 font-semibold text-foreground">
+                  Tab
+                </span>
+                <span>하위레벨 생성</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-foreground/80">
+                <span className="rounded-xl border border-slate-300 bg-white px-2 py-1 font-semibold text-foreground">
+                  Enter
+                </span>
+                <span>동일레벨 생성</span>
+              </div>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+
+      <Handle
+        className="!size-2.5 !border-0 !bg-transparent"
+        id="right-source"
+        position={Position.Right}
+        style={{ opacity: 0.001 }}
+        type="source"
+      />
+      <Handle
+        className="!size-2.5 !border-0 !bg-transparent"
+        id="right-target"
+        position={Position.Right}
+        style={{ opacity: data.isRoot ? 0 : 0.001 }}
+        type="target"
+      />
+    </div>
+  )
 }
+
+export const MindMapNode = memo(MindMapNodeComponent)

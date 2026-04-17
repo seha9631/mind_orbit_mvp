@@ -309,7 +309,6 @@ export function useMindMapEditor({
 
   const isDirty = !!state.map && state.lastPersistedUpdatedAt !== state.map.updatedAt
 
-  // 항상 최신 state를 참조하기 위한 ref (핸들러 참조 안정성 유지용)
   const stateRef = useRef(state)
   useEffect(() => {
     stateRef.current = state
@@ -368,18 +367,14 @@ export function useMindMapEditor({
     })
   }, [])
 
-<<<<<<< HEAD
-  const setViewportState = useCallback((viewport: ViewportState) => {
-=======
-  function updateNodeSize(nodeId: string, size: NodeSize) {
+  const updateNodeSize = useCallback((nodeId: string, size: NodeSize) => {
     dispatch({
       type: 'UPDATE_NODE_SIZE',
       payload: { nodeId, size },
     })
-  }
+  }, [])
 
-  function setViewportState(viewport: ViewportState) {
->>>>>>> marco_merge_mobile_test
+  const setViewportState = useCallback((viewport: ViewportState) => {
     dispatch({
       type: 'SET_VIEWPORT',
       payload: viewport,
