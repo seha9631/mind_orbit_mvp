@@ -4,6 +4,7 @@ import {
   type ReactFlowInstance,
   type XYPosition,
 } from '@xyflow/react'
+import type { MindMapNodeRecord } from '../../../shared/types/mindmap'
 
 import { buildBranchColorMap, buildFlowEdges } from '../../../shared/lib/mapOperations'
 import type { DeviceClass, MindMapRecord, ViewportState } from '../../../shared/types/mindmap'
@@ -66,31 +67,49 @@ export function MindMapCanvas({
     [dragPositions, map.nodes],
   )
 
-  const branchColors = buildBranchColorMap(map)
-  const edges = buildFlowEdges(map)
+  const branchColors = useMemo(() => buildBranchColorMap(map), [map])
+  const edges = useMemo(() => buildFlowEdges(map), [map])
 
-  const nodes: MindFlowNode[] = effectiveMapNodes.map((node) => ({
-    id: node.id,
-    data: {
-      color: branchColors.get(node.id) ?? '#89b6ff',
+  const nodes: MindFlowNode[] = useMemo(
+    () =>
+      effectiveMapNodes.map((node) => ({
+        id: node.id,
+        data: {
+          color: branchColors.get(node.id) ?? '#89b6ff',
+          deviceClass,
+          id: node.id,
+          isEditing: editingNodeId === node.id,
+          isRoot: node.id === map.rootNodeId,
+          label: node.text,
+          placeholder: node.id === map.rootNodeId ? '중심 생각' : '생각 입력',
+          onChangeLabel,
+          onOpenMore,
+          onQuickAddChild,
+          onSelect: onSelectNode,
+          onStartEditing,
+          onStopEditing,
+          touchPrimary: isTouchPrimary,
+        },
+        position: node.position,
+        selected: selectedNodeId === node.id,
+        type: 'mind',
+      })),
+    [
+      branchColors,
       deviceClass,
-      id: node.id,
-      isEditing: editingNodeId === node.id,
-      isRoot: node.id === map.rootNodeId,
-      label: node.text,
-      placeholder: node.id === map.rootNodeId ? '중심 생각' : '생각 입력',
+      editingNodeId,
+      effectiveMapNodes,
+      isTouchPrimary,
+      map.rootNodeId,
       onChangeLabel,
       onOpenMore,
       onQuickAddChild,
-      onSelect: onSelectNode,
+      onSelectNode,
       onStartEditing,
       onStopEditing,
-      touchPrimary: isTouchPrimary,
-    },
-    position: node.position,
-    selected: selectedNodeId === node.id,
-    type: 'mind',
-  }))
+      selectedNodeId,
+    ],
+  )
 
   useEffect(() => {
     if (!instance || fitViewToken === 0) {
@@ -129,12 +148,22 @@ export function MindMapCanvas({
     )
   }, [instance, map.id, map.nodes.length, map.viewport.x, map.viewport.y, map.viewport.zoom])
 
+  // 편집 중 매 키 입력마다 map.nodes 참조가 바뀌면 setCenter 애니메이션이
+  // 재시작되면서 입력이 버벅거린다. 의존성에서 map.nodes를 빼고 최신 map은
+  // ref로만 참조해서 "선택 변경 / 키보드 노출" 변화 때만 센터링한다.
+  const mapRef = useRef(map)
+  useEffect(() => {
+    mapRef.current = map
+  }, [map])
+
   useEffect(() => {
     if (!instance || !selectedNodeId || !keyboardVisible || deviceClass === 'desktop') {
       return
     }
 
-    const node = map.nodes.find((candidate) => candidate.id === selectedNodeId)
+    const node = mapRef.current.nodes.find(
+      (candidate: MindMapNodeRecord) => candidate.id === selectedNodeId,
+    )
 
     if (!node) {
       return
@@ -144,7 +173,7 @@ export function MindMapCanvas({
       duration: 220,
       zoom: Math.max(instance.getZoom(), 0.95),
     })
-  }, [deviceClass, instance, keyboardVisible, map.nodes, selectedNodeId])
+  }, [deviceClass, instance, keyboardVisible, selectedNodeId])
 
   return (
     <div className="absolute inset-0 h-dvh min-h-dvh w-full min-h-svh">

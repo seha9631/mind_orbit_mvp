@@ -1,4 +1,4 @@
-import { useEffect, useReducer } from 'react'
+import { useCallback, useEffect, useReducer, useRef } from 'react'
 import type { XYPosition } from '@xyflow/react'
 
 import { getMindMap, saveAppMeta } from '../../../shared/lib/db'
@@ -295,77 +295,89 @@ export function useMindMapEditor({
 
   const isDirty = !!state.map && state.lastPersistedUpdatedAt !== state.map.updatedAt
 
-  function selectNode(nodeId: string | null) {
+  // 항상 최신 state를 참조하기 위한 ref (핸들러 참조 안정성 유지용)
+  const stateRef = useRef(state)
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
+
+  const selectNode = useCallback((nodeId: string | null) => {
     dispatch({ type: 'SELECT_NODE', payload: nodeId })
-  }
+  }, [])
 
-  function startEditing(nodeId: string) {
+  const startEditing = useCallback((nodeId: string) => {
     dispatch({ type: 'START_EDITING', payload: nodeId })
-  }
+  }, [])
 
-  function stopEditing() {
+  const stopEditing = useCallback(() => {
     dispatch({ type: 'STOP_EDITING' })
-  }
+  }, [])
 
-  function changeNodeText(nodeId: string, text: string) {
+  const changeNodeText = useCallback((nodeId: string, text: string) => {
     dispatch({
       type: 'CHANGE_NODE_TEXT',
       payload: { nodeId, text },
     })
-  }
+  }, [])
 
-  function addChild(nodeId = state.selectedNodeId ?? state.map?.rootNodeId ?? '') {
+  const addChild = useCallback((nodeId?: string) => {
+    const current = stateRef.current
+    const targetId = nodeId ?? current.selectedNodeId ?? current.map?.rootNodeId ?? ''
     dispatch({
       type: 'ADD_CHILD',
-      payload: { nodeId },
+      payload: { nodeId: targetId },
     })
-  }
+  }, [])
 
-  function addSibling(nodeId = state.selectedNodeId ?? state.map?.rootNodeId ?? '') {
+  const addSibling = useCallback((nodeId?: string) => {
+    const current = stateRef.current
+    const targetId = nodeId ?? current.selectedNodeId ?? current.map?.rootNodeId ?? ''
     dispatch({
       type: 'ADD_SIBLING',
-      payload: { nodeId },
+      payload: { nodeId: targetId },
     })
-  }
+  }, [])
 
-  function deleteSelected(nodeId = state.selectedNodeId ?? '') {
+  const deleteSelected = useCallback((nodeId?: string) => {
+    const current = stateRef.current
+    const targetId = nodeId ?? current.selectedNodeId ?? ''
     dispatch({
       type: 'DELETE_SELECTED',
-      payload: { nodeId },
+      payload: { nodeId: targetId },
     })
-  }
+  }, [])
 
-  function updateNodePosition(nodeId: string, position: XYPosition) {
+  const updateNodePosition = useCallback((nodeId: string, position: XYPosition) => {
     dispatch({
       type: 'UPDATE_NODE_POSITION',
       payload: { nodeId, position },
     })
-  }
+  }, [])
 
-  function setViewportState(viewport: ViewportState) {
+  const setViewportState = useCallback((viewport: ViewportState) => {
     dispatch({
       type: 'SET_VIEWPORT',
       payload: viewport,
     })
-  }
+  }, [])
 
-  function openSheet(sheet: ActiveSheet) {
+  const openSheet = useCallback((sheet: ActiveSheet) => {
     dispatch({
       type: 'OPEN_SHEET',
       payload: sheet,
     })
-  }
+  }, [])
 
-  function closeSheet() {
+  const closeSheet = useCallback(() => {
     dispatch({ type: 'CLOSE_SHEET' })
-  }
+  }, [])
 
-  function markPersisted(updatedAt: string) {
+  const markPersisted = useCallback((updatedAt: string) => {
     dispatch({
       type: 'MARK_PERSISTED',
       payload: updatedAt,
     })
-  }
+  }, [])
 
   return {
     map: state.map,
