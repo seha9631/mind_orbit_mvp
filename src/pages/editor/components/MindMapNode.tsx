@@ -281,8 +281,10 @@ function MindMapNodeComponent({ data, selected }: NodeProps<MindFlowNode>) {
               data.onStopEditing()
             }}
             onChange={(event) => {
-              if (!event.nativeEvent.isComposing) {
-                data.onChangeLabel(data.id, event.target.value)
+              const nativeEvent = event.nativeEvent as InputEvent
+
+              if (!nativeEvent.isComposing) {
+                data.onChangeLabel(data.id, event.currentTarget.value)
               }
             }}
             onClick={(event) => {
